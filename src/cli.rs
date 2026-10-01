@@ -110,6 +110,7 @@ impl Cli {
     pub fn options(&self) -> CompileOptions {
         CompileOptions {
             output: self.output.clone(),
+            config: self.config.clone(),
             emit: self.emit,
             force_slides: self.slides,
             style: self.style.clone(),

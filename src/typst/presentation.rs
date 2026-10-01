@@ -7,7 +7,7 @@
 use crate::diagnostics::{Diagnostics, Result};
 use crate::ir::{Presentation, Slide};
 
-use super::document::{show_rule, template_arguments};
+use super::document::{prelude, show_rule, template_arguments};
 use super::markup::Renderer;
 use super::RenderOptions;
 
@@ -22,6 +22,7 @@ pub fn emit_presentation(
     out.push_str("\n\n");
     out.push_str(&show_rule("presentation", &presentation.metadata));
     out.push_str("\n\n");
+    out.push_str(&prelude(options));
 
     // A title triggers the title slide; the other fields merely fill it in.
     if presentation.has_title_slide() {
