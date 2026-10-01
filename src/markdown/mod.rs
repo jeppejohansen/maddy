@@ -15,8 +15,10 @@
 //! ```
 
 pub mod frontmatter;
+pub mod parser;
 
 #[cfg(test)]
 mod tests;
 
 pub use frontmatter::{split as parse_frontmatter, FrontMatter};
+pub use parser::{parse, ParseOutcome};
