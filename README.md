@@ -313,7 +313,7 @@ Implemented in the milestone order set out in [`spec.md`](spec.md):
 - [x] **1** — basic document compiler
 - [x] **2** — mathematics
 - [x] **3** — slides
-- [ ] **4** — five slide themes
+- [x] **4** — five slide themes
 - [x] **5** — richer Markdown
 - [ ] **6** — diagnostics
 - [ ] **7** — configuration

@@ -10,6 +10,9 @@
 
 use crate::metadata::DocumentType;
 
+#[cfg(test)]
+mod tests;
+
 /// The default document template.
 pub const DOCUMENT_DEFAULT: &str = include_str!("document/default.typ");
 
@@ -17,7 +20,13 @@ pub const DOCUMENT_DEFAULT: &str = include_str!("document/default.typ");
 pub const DEFAULT_SLIDE_STYLE: &str = "academic";
 
 /// The built-in slide themes, in the order the documentation lists them.
-pub const SLIDE_STYLES: &[(&str, &str)] = &[("academic", include_str!("slides/academic.typ"))];
+pub const SLIDE_STYLES: &[(&str, &str)] = &[
+    ("academic", include_str!("slides/academic.typ")),
+    ("minimal", include_str!("slides/minimal.typ")),
+    ("dark", include_str!("slides/dark.typ")),
+    ("bold", include_str!("slides/bold.typ")),
+    ("mono", include_str!("slides/mono.typ")),
+];
 
 /// The built-in document template.
 pub fn document() -> &'static str {
