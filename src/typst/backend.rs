@@ -19,17 +19,33 @@ pub struct CompileContext {
     /// This is the directory holding the Markdown file, so that an image written
     /// as `figures/results.png` means what the author expects.
     pub root: PathBuf,
+    /// Whether to pass the backend's own warnings through to the user.
+    ///
+    /// Typst warns about things the compiler cannot act on, such as a font the
+    /// machine does not have. Showing them by default would be noise, and
+    /// hiding them entirely would make such a problem invisible, so they appear
+    /// under `--verbose`.
+    pub verbose: bool,
 }
 
 impl CompileContext {
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: root.into(),
+            verbose: false,
+        }
     }
 
     /// The context for compiling a given source file.
     pub fn for_source(input: &Path) -> Self {
         let root = input.parent().filter(|path| !path.as_os_str().is_empty());
         Self::new(root.unwrap_or(Path::new(".")))
+    }
+
+    /// Pass the backend's warnings through.
+    pub fn verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
+        self
     }
 }
 
@@ -118,6 +134,12 @@ impl PdfBackend for ExternalTypstBackend {
             return Err(CompileError::TypstCompile {
                 details: "typst reported success but produced no PDF".into(),
             });
+        }
+
+        // Typst can succeed and still have something to say, such as a missing
+        // font family. That is worth seeing, but only when asked for.
+        if context.verbose && !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
         }
 
         Ok(output.stdout)

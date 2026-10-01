@@ -168,6 +168,12 @@ fn run_once(cli: &Cli) -> std::result::Result<(), u8> {
         }
         Err(error) => {
             report(&error, &path, &source);
+            // The diagnostic shows the first few lines; `-v` shows everything.
+            if cli.verbosity() == Verbosity::Verbose {
+                if let Some(details) = error.full_details() {
+                    eprintln!("Full output:\n{}\n", details.trim_end());
+                }
+            }
             Err(error.exit_code())
         }
     }

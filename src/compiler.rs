@@ -223,7 +223,9 @@ fn write_outputs(
     if effective.emit.writes_pdf() {
         log.stage("Running Typst...");
         let backend = ExternalTypstBackend::new();
-        let pdf = backend.compile(typst, &CompileContext::for_source(input))?;
+        let context =
+            CompileContext::for_source(input).verbose(effective.verbosity == Verbosity::Verbose);
+        let pdf = backend.compile(typst, &context)?;
 
         let path = pdf_path(input, effective);
         std::fs::write(&path, pdf).map_err(io_error(format!("writing {}", path.display())))?;
