@@ -11,7 +11,7 @@ keywords = ["markdown", "latex", "math", "pdf", "typst"]
 categories = ["command-line-utilities", "text-processing"]
 
 [[bin]]
-name = "mdpdf"
+name = "maddy"
 path = "src/main.rs"
 
 [lib]

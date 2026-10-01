@@ -75,8 +75,8 @@ $$
 /// The themes the documentation promises.
 const THEMES: &[&str] = &["academic", "minimal", "dark", "bold", "mono"];
 
-fn mdpdf() -> Command {
-    Command::cargo_bin("mdpdf").expect("the mdpdf binary should be built")
+fn maddy() -> Command {
+    Command::cargo_bin("maddy").expect("the maddy binary should be built")
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn every_theme_compiles_the_whole_contract() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let input = support::write_markdown(directory.path(), "talk.md", DECK);
 
-        mdpdf()
+        maddy()
             .arg(&input)
             .args(["--style", theme])
             .assert()
@@ -123,7 +123,7 @@ fn every_theme_is_sixteen_by_nine() {
     for theme in THEMES {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let input = support::write_markdown(directory.path(), "talk.md", DECK);
-        mdpdf()
+        maddy()
             .arg(&input)
             .args(["--style", theme])
             .assert()
@@ -152,7 +152,7 @@ fn a_theme_changes_appearance_without_changing_semantics() {
     for theme in THEMES {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let input = support::write_markdown(directory.path(), "talk.md", DECK);
-        mdpdf()
+        maddy()
             .arg(&input)
             .args(["--style", theme])
             .assert()
@@ -190,7 +190,7 @@ fn the_style_can_be_chosen_from_front_matter() {
     let directory = tempfile::tempdir().expect("a temporary directory");
     let input = support::write_markdown(directory.path(), "talk.md", &deck);
 
-    mdpdf().arg(&input).arg("--keep-typst").assert().success();
+    maddy().arg(&input).arg("--keep-typst").assert().success();
 
     let typst = std::fs::read_to_string(directory.path().join("talk.typ")).expect("talk.typ");
     assert!(
@@ -211,7 +211,7 @@ fn a_command_line_style_overrides_the_front_matter() {
     let directory = tempfile::tempdir().expect("a temporary directory");
     let input = support::write_markdown(directory.path(), "talk.md", &deck);
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--style", "dark"])
         .arg("--keep-typst")

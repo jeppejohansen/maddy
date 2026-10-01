@@ -176,7 +176,7 @@ mod tests {
     fn several_files_are_watched_and_reported_individually() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let paper = directory.path().join("paper.md");
-        let config = directory.path().join("mdpdf.toml");
+        let config = directory.path().join("maddy.toml");
         write(&paper, "one");
         write(&config, "[page]\n");
 
@@ -191,7 +191,7 @@ mod tests {
     fn a_file_that_appears_is_a_change() {
         // A configuration file created after the first build should rebuild.
         let directory = tempfile::tempdir().expect("a temporary directory");
-        let config = directory.path().join("mdpdf.toml");
+        let config = directory.path().join("maddy.toml");
 
         let mut watcher = Watcher::new([config.clone()]);
         assert!(watcher.poll().is_empty());
@@ -225,7 +225,7 @@ mod tests {
     fn tracking_a_new_set_keeps_what_was_already_known() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let paper = directory.path().join("paper.md");
-        let config = directory.path().join("mdpdf.toml");
+        let config = directory.path().join("maddy.toml");
         write(&paper, "one");
         write(&config, "[page]\n");
 
@@ -244,7 +244,7 @@ mod tests {
     fn tracking_drops_paths_that_no_longer_matter() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let paper = directory.path().join("paper.md");
-        let config = directory.path().join("mdpdf.toml");
+        let config = directory.path().join("maddy.toml");
         write(&paper, "one");
         write(&config, "[page]\n");
 

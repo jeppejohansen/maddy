@@ -20,9 +20,9 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use tempfile::TempDir;
 
-/// The `mdpdf` binary.
-fn mdpdf() -> Command {
-    Command::cargo_bin("mdpdf").expect("the mdpdf binary should be built")
+/// The `maddy` binary.
+fn maddy() -> Command {
+    Command::cargo_bin("maddy").expect("the maddy binary should be built")
 }
 
 /// A temporary directory holding `name` with the given contents.
@@ -55,7 +55,7 @@ fn compiling_a_markdown_file_produces_a_pdf_beside_it() {
     }
 
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let pdf = directory.path().join("paper.pdf");
     let bytes = std::fs::read(&pdf).expect("paper.pdf should exist");
@@ -73,7 +73,7 @@ fn success_reports_what_was_compiled() {
     }
 
     let (_directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .success()
@@ -89,7 +89,7 @@ fn the_acceptance_document_compiles_without_intervention() {
 
     // The document the specification requires to work.
     let (directory, input) = fixture("regression.md");
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let bytes = std::fs::read(directory.path().join("regression.pdf")).expect("a PDF");
     assert!(support::is_pdf(&bytes));
@@ -104,7 +104,7 @@ fn a_document_using_every_supported_construct_compiles() {
     }
 
     let (directory, input) = fixture("rich.md");
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
     assert!(support::is_pdf(
         &std::fs::read(directory.path().join("rich.pdf")).expect("a PDF")
     ));
@@ -122,7 +122,7 @@ fn an_explicit_output_path_is_honoured() {
     let (directory, input) = workspace("paper.md", SIMPLE);
     let output = directory.path().join("result.pdf");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("-o")
         .arg(&output)
@@ -139,7 +139,7 @@ fn an_explicit_output_path_is_honoured() {
 #[test]
 fn emitting_typst_writes_only_typst() {
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "typst"])
         .assert()
@@ -161,7 +161,7 @@ fn emitting_typst_writes_only_typst() {
 fn emitting_typst_needs_no_typst_installation() {
     // The whole point of the suggestion in the missing-Typst error.
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "typst"])
         .env("PATH", directory.path())
@@ -178,7 +178,7 @@ fn emitting_both_writes_typst_and_pdf() {
     }
 
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "both"])
         .assert()
@@ -202,7 +202,7 @@ fn keep_typst_preserves_the_intermediate_alongside_the_pdf() {
     }
 
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf().arg(&input).arg("--keep-typst").assert().success();
+    maddy().arg(&input).arg("--keep-typst").assert().success();
 
     assert!(
         directory.path().join("paper.typ").exists(),
@@ -222,7 +222,7 @@ fn compiling_leaves_no_stray_files_behind() {
     }
 
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let mut names: Vec<String> = std::fs::read_dir(directory.path())
         .expect("reading the directory")
@@ -252,7 +252,7 @@ fn a_relative_image_path_resolves_against_the_markdown_file() {
     std::fs::create_dir(&figures).expect("creating figures/");
     std::fs::write(figures.join("dot.png"), one_pixel_png()).expect("writing the image");
 
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
     assert!(directory.path().join("paper.pdf").exists());
 }
 
@@ -268,7 +268,7 @@ fn a_remote_image_warns_but_still_compiles() {
         "# Figure\n\n![Plot](https://example.com/plot.png)\n",
     );
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .success()
@@ -281,7 +281,7 @@ fn a_remote_image_warns_but_still_compiles() {
 fn an_unknown_math_command_fails_and_points_at_the_markdown() {
     let (_directory, input) = workspace("paper.md", "# T\n\nWe have $\\foo{x}$ here.\n");
 
-    mdpdf().arg(&input).assert().code(1).stderr(
+    maddy().arg(&input).assert().code(1).stderr(
         predicate::str::contains("paper.md:3:10")
             .and(predicate::str::contains("\\foo"))
             .and(predicate::str::contains("^^^^^^^")),
@@ -292,7 +292,7 @@ fn an_unknown_math_command_fails_and_points_at_the_markdown() {
 fn an_unsupported_math_construct_says_what_it_parsed() {
     let (_directory, input) = workspace("paper.md", "$$\n\\color{red} x\n$$\n");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .code(1)
@@ -308,7 +308,7 @@ fn raw_html_warns_but_succeeds() {
 
     let (_directory, input) = workspace("paper.md", "# T\n\n<div>hello</div>\n");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .success()
@@ -321,7 +321,7 @@ fn raw_html_warns_but_succeeds() {
 fn strict_turns_a_warning_into_an_error() {
     let (directory, input) = workspace("paper.md", "# T\n\n<div>hello</div>\n");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("--strict")
         .assert()
@@ -346,7 +346,7 @@ fn an_unknown_front_matter_field_warns_but_succeeds() {
         "---\ntitle: T\nkeywords: economics\n---\n\nBody.\n",
     );
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .success()
@@ -359,7 +359,7 @@ fn an_unknown_front_matter_field_warns_but_succeeds() {
 fn an_invalid_document_type_is_rejected() {
     let (_directory, input) = workspace("paper.md", "---\ntype: poster\n---\n\nBody.\n");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .code(1)
@@ -368,7 +368,7 @@ fn an_invalid_document_type_is_rejected() {
 
 #[test]
 fn a_missing_input_file_is_an_environment_error() {
-    mdpdf()
+    maddy()
         .arg("does-not-exist.md")
         .assert()
         .code(3)
@@ -380,7 +380,7 @@ fn a_missing_typst_executable_suggests_emitting_typst() {
     let (directory, input) = workspace("paper.md", SIMPLE);
 
     // An empty PATH, so no `typst` can be found.
-    mdpdf()
+    maddy()
         .arg(&input)
         .env("PATH", directory.path())
         .assert()
@@ -401,7 +401,7 @@ fn quiet_prints_nothing_on_success() {
     }
 
     let (_directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("-q")
         .assert()
@@ -417,7 +417,7 @@ fn verbose_reports_each_stage() {
     }
 
     let (_directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf().arg(&input).arg("-v").assert().success().stderr(
+    maddy().arg(&input).arg("-v").assert().success().stderr(
         predicate::str::contains("Reading metadata...")
             .and(predicate::str::contains("Parsing Markdown..."))
             .and(predicate::str::contains("Parsing 2 math expression(s)..."))
@@ -428,21 +428,21 @@ fn verbose_reports_each_stage() {
 
 #[test]
 fn the_help_and_version_flags_work() {
-    mdpdf()
+    maddy()
         .arg("--help")
         .assert()
         .success()
         .stdout(predicate::str::contains("--slides"));
-    mdpdf()
+    maddy()
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("mdpdf"));
+        .stdout(predicate::str::contains("maddy"));
 }
 
 #[test]
 fn no_arguments_is_a_usage_error() {
-    mdpdf()
+    maddy()
         .assert()
         .failure()
         .stderr(predicate::str::contains("Usage"));
@@ -477,7 +477,7 @@ fn front_matter_selects_presentation_mode() {
     }
 
     let (directory, input) = workspace("talk.md", TALK);
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
     // A title slide plus three content slides.
@@ -492,7 +492,7 @@ fn a_presentation_is_sixteen_by_nine() {
     }
 
     let (directory, input) = workspace("talk.md", TALK);
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
     let ratio = support::pdf_aspect_ratio(&bytes).expect("a page size");
@@ -513,7 +513,7 @@ fn the_slides_flag_overrides_the_document_type() {
     let source = "---\ntype: document\n---\n\n# One\n\ntext\n\n---\n\n# Two\n\ntext\n";
     let (directory, input) = workspace("talk.md", source);
 
-    mdpdf().arg(&input).arg("--slides").assert().success();
+    maddy().arg(&input).arg("--slides").assert().success();
 
     let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
     // Two slides, and no title slide since there is no title.
@@ -530,7 +530,7 @@ fn a_separator_is_a_rule_in_document_mode_and_a_break_in_slides_mode() {
     let source = "# One\n\ntext\n\n---\n\n# Two\n\ntext\n";
 
     let (document_directory, document_input) = workspace("paper.md", source);
-    mdpdf().arg(&document_input).assert().success();
+    maddy().arg(&document_input).assert().success();
     let document = std::fs::read(document_directory.path().join("paper.pdf")).expect("a PDF");
     assert_eq!(
         support::pdf_page_count(&document),
@@ -539,7 +539,7 @@ fn a_separator_is_a_rule_in_document_mode_and_a_break_in_slides_mode() {
     );
 
     let (slides_directory, slides_input) = workspace("talk.md", source);
-    mdpdf()
+    maddy()
         .arg(&slides_input)
         .arg("--slides")
         .assert()
@@ -561,7 +561,7 @@ fn the_presentation_acceptance_deck_compiles() {
 
     // The deck the specification requires to work.
     let (directory, input) = fixture("talk.md");
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
     assert!(support::is_pdf(&bytes));
@@ -586,7 +586,7 @@ fn a_deck_without_a_title_has_no_title_slide() {
         "talk.md",
         "---\ntype: slides\n---\n\n# One\n\ntext\n\n---\n\n# Two\n\ntext\n",
     );
-    mdpdf().arg(&input).assert().success();
+    maddy().arg(&input).assert().success();
 
     let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
     assert_eq!(support::pdf_page_count(&bytes), Some(2));
@@ -604,7 +604,7 @@ fn two_titles_on_one_slide_warns() {
         "---\ntype: slides\n---\n\n# One\n\n# Two\n\ntext\n",
     );
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .success()
@@ -615,7 +615,7 @@ fn two_titles_on_one_slide_warns() {
 fn an_unknown_style_is_a_configuration_error_naming_the_choices() {
     let (_directory, input) = workspace("talk.md", TALK);
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--style", "chartreuse"])
         .assert()
@@ -646,7 +646,7 @@ fn a_failing_template_reports_concisely_and_points_at_keep_typst() {
     let template = directory.path().join("broken.typ");
     std::fs::write(&template, BROKEN_TEMPLATE).expect("writing the template");
 
-    let output = mdpdf()
+    let output = maddy()
         .arg(&input)
         .arg("--template")
         .arg(&template)
@@ -682,7 +682,7 @@ fn verbose_shows_the_whole_compiler_output() {
     let template = directory.path().join("broken.typ");
     std::fs::write(&template, BROKEN_TEMPLATE).expect("writing the template");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("-v")
         .arg("--template")
@@ -696,7 +696,7 @@ fn verbose_shows_the_whole_compiler_output() {
 fn a_missing_template_is_an_environment_error() {
     let (_directory, input) = workspace("paper.md", SIMPLE);
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--template", "no-such-template.typ"])
         .assert()
@@ -721,12 +721,12 @@ fn configuration_beside_the_document_is_applied() {
     }
 
     let (directory, input) = workspace("paper.md", SIMPLE);
-    std::fs::write(directory.path().join("mdpdf.toml"), CONFIG).expect("writing config");
+    std::fs::write(directory.path().join("maddy.toml"), CONFIG).expect("writing config");
 
-    mdpdf().arg(&input).arg("--keep-typst").assert().success();
+    maddy().arg(&input).arg("--keep-typst").assert().success();
 
     let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
-    assert!(typst.contains("// From mdpdf.toml"), "{typst}");
+    assert!(typst.contains("// From maddy.toml"), "{typst}");
     assert!(
         typst.contains(r#"#set page(paper: "a5", margin: 15mm)"#),
         "{typst}"
@@ -746,9 +746,9 @@ fn configuration_rules_follow_the_template_so_they_override_it() {
     // The template applies its own rules first; configuration has to come after
     // or it would be the thing being overridden.
     let (directory, input) = workspace("paper.md", SIMPLE);
-    std::fs::write(directory.path().join("mdpdf.toml"), CONFIG).expect("writing config");
+    std::fs::write(directory.path().join("maddy.toml"), CONFIG).expect("writing config");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "typst"])
         .assert()
@@ -757,7 +757,7 @@ fn configuration_rules_follow_the_template_so_they_override_it() {
     let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
     let template = typst.find("#let article(").expect("the template");
     let rules = typst
-        .find("// From mdpdf.toml")
+        .find("// From maddy.toml")
         .expect("the configuration rules");
     let body = typst.find("= Heading").expect("the body");
 
@@ -773,14 +773,14 @@ fn an_explicit_config_path_is_used() {
     // One beside the document, which must be ignored in favour of the explicit
     // one.
     std::fs::write(
-        directory.path().join("mdpdf.toml"),
+        directory.path().join("maddy.toml"),
         "[page]\nmargin = \"99mm\"\n",
     )
     .expect("writing the nearby config");
     let explicit = directory.path().join("other.toml");
     std::fs::write(&explicit, "[page]\nmargin = \"7mm\"\n").expect("writing the explicit config");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("--config")
         .arg(&explicit)
@@ -797,23 +797,23 @@ fn an_explicit_config_path_is_used() {
 fn a_broken_configuration_file_is_a_configuration_error() {
     let (directory, input) = workspace("paper.md", SIMPLE);
     std::fs::write(
-        directory.path().join("mdpdf.toml"),
+        directory.path().join("maddy.toml"),
         "[document]\npapers = \"a4\"\n",
     )
     .expect("writing config");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .assert()
         .code(2)
-        .stderr(predicate::str::contains("mdpdf.toml").and(predicate::str::contains("papers")));
+        .stderr(predicate::str::contains("maddy.toml").and(predicate::str::contains("papers")));
 }
 
 #[test]
 fn a_missing_explicit_config_is_an_environment_error() {
     let (_directory, input) = workspace("paper.md", SIMPLE);
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--config", "no-such-config.toml"])
         .assert()
@@ -830,12 +830,12 @@ fn the_full_precedence_chain_resolves_in_order() {
         let source = format!("---\ntype: slides\n{front}---\n\n# One\n\ntext\n");
         let (directory, input) = workspace("talk.md", &source);
         std::fs::write(
-            directory.path().join("mdpdf.toml"),
+            directory.path().join("maddy.toml"),
             "[slides]\nstyle = \"mono\"\n",
         )
         .expect("writing config");
 
-        let mut command = mdpdf();
+        let mut command = maddy();
         command
             .arg(&input)
             .args(["--emit", "typst"])
@@ -878,12 +878,12 @@ fn a_custom_template_still_receives_configuration() {
     )
     .expect("writing the template");
     std::fs::write(
-        directory.path().join("mdpdf.toml"),
+        directory.path().join("maddy.toml"),
         "[page]\nmargin = \"7mm\"\n",
     )
     .expect("writing config");
 
-    mdpdf()
+    maddy()
         .arg(&input)
         .arg("--template")
         .arg(&template)
@@ -898,14 +898,14 @@ fn a_custom_template_still_receives_configuration() {
 #[test]
 fn no_configuration_file_is_not_an_error() {
     let (directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "typst"])
         .assert()
         .success();
 
     let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
-    assert!(!typst.contains("// From mdpdf.toml"), "{typst}");
+    assert!(!typst.contains("// From maddy.toml"), "{typst}");
 }
 
 #[test]
@@ -916,7 +916,7 @@ fn emitting_both_reports_one_line_listing_each_output() {
     }
 
     let (_directory, input) = workspace("paper.md", SIMPLE);
-    let output = mdpdf()
+    let output = maddy()
         .arg(&input)
         .args(["--emit", "both"])
         .assert()
@@ -938,7 +938,7 @@ fn emitting_both_reports_one_line_listing_each_output() {
 #[test]
 fn emitting_typst_only_reports_the_typst_file() {
     let (_directory, input) = workspace("paper.md", SIMPLE);
-    mdpdf()
+    maddy()
         .arg(&input)
         .args(["--emit", "typst"])
         .assert()

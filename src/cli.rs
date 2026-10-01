@@ -52,7 +52,7 @@ pub enum Verbosity {
 /// presentation.
 #[derive(Debug, Parser)]
 #[command(
-    name = "mdpdf",
+    name = "maddy",
     version,
     about = "Compile Markdown with LaTeX-style mathematics into a PDF",
     long_about = None,
@@ -254,7 +254,7 @@ mod tests {
     use clap::CommandFactory;
 
     fn parse(args: &[&str]) -> Cli {
-        Cli::try_parse_from(std::iter::once("mdpdf").chain(args.iter().copied())).unwrap()
+        Cli::try_parse_from(std::iter::once("maddy").chain(args.iter().copied())).unwrap()
     }
 
     #[test]
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn an_input_file_is_required() {
-        assert!(Cli::try_parse_from(["mdpdf"]).is_err());
+        assert!(Cli::try_parse_from(["maddy"]).is_err());
     }
 
     #[test]
@@ -307,7 +307,7 @@ mod tests {
             parse(&["paper.md", "--emit", "both"]).emit,
             EmitFormat::Both
         );
-        assert!(Cli::try_parse_from(["mdpdf", "paper.md", "--emit", "docx"]).is_err());
+        assert!(Cli::try_parse_from(["maddy", "paper.md", "--emit", "docx"]).is_err());
     }
 
     #[test]
@@ -329,11 +329,11 @@ mod tests {
         let cli = parse(&[
             "paper.md",
             "--config",
-            "mdpdf.toml",
+            "maddy.toml",
             "--template",
             "custom.typ",
         ]);
-        assert_eq!(cli.config, Some("mdpdf.toml".into()));
+        assert_eq!(cli.config, Some("maddy.toml".into()));
         assert_eq!(cli.template, Some("custom.typ".into()));
     }
 
@@ -361,6 +361,6 @@ mod tests {
 
     #[test]
     fn quiet_and_verbose_are_mutually_exclusive() {
-        assert!(Cli::try_parse_from(["mdpdf", "paper.md", "-q", "-v"]).is_err());
+        assert!(Cli::try_parse_from(["maddy", "paper.md", "-q", "-v"]).is_err());
     }
 }
