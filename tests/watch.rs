@@ -28,8 +28,8 @@ impl Drop for Watching {
 }
 
 fn start_watching(input: &Path) -> Watching {
-    let child = Command::cargo_bin("mdpdf")
-        .expect("the mdpdf binary should be built")
+    let child = Command::cargo_bin("maddy")
+        .expect("the maddy binary should be built")
         .arg("--watch")
         .arg(input)
         .stdout(Stdio::null())
@@ -78,7 +78,7 @@ fn editing_the_document_rebuilds_it() {
 
     // Emitting Typst keeps the test independent of how long a PDF takes.
     let _watcher = {
-        let child = Command::cargo_bin("mdpdf")
+        let child = Command::cargo_bin("maddy")
             .expect("the binary")
             .arg("--watch")
             .args(["--emit", "typst"])
@@ -138,12 +138,12 @@ fn a_failed_build_does_not_stop_the_watcher() {
 fn editing_the_configuration_rebuilds_the_document() {
     let directory = tempfile::tempdir().expect("a temporary directory");
     let input = support::write_markdown(directory.path(), "paper.md", "# One\n\nText.\n");
-    let config = directory.path().join("mdpdf.toml");
+    let config = directory.path().join("maddy.toml");
     std::fs::write(&config, "[page]\nmargin = \"25mm\"\n").expect("writing config");
     let output = directory.path().join("paper.typ");
 
     let _watcher = {
-        let child = Command::cargo_bin("mdpdf")
+        let child = Command::cargo_bin("maddy")
             .expect("the binary")
             .arg("--watch")
             .args(["--emit", "typst"])

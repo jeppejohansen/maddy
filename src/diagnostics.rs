@@ -390,7 +390,7 @@ impl CompileError {
                     .with_note("Run with --keep-typst to inspect generated source.")]
             }
             CompileError::TypstMissing => vec![Diagnostic::error("Typst executable was not found")
-                .with_note("Install Typst or run:\n\n    mdpdf --emit typst document.md")],
+                .with_note("Install Typst or run:\n\n    maddy --emit typst document.md")],
             other => vec![Diagnostic::error(other.to_string())],
         }
     }

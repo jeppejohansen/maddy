@@ -19,7 +19,7 @@ use crate::diagnostics::{io_error, CompileError, Diagnostic, Result};
 use crate::typst::escape;
 
 /// The configuration file's name, looked for beside the document.
-pub const FILE_NAME: &str = "mdpdf.toml";
+pub const FILE_NAME: &str = "maddy.toml";
 
 /// Project configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -104,7 +104,7 @@ impl Config {
 
     /// Find and read configuration for a document.
     ///
-    /// An explicit path must exist. Otherwise `mdpdf.toml` is looked for beside
+    /// An explicit path must exist. Otherwise `maddy.toml` is looked for beside
     /// the document and in each parent directory, so a project can carry one
     /// file at its root; finding none is not an error.
     pub fn discover(input: &Path, explicit: Option<&Path>) -> Result<(Self, Option<PathBuf>)> {
@@ -420,7 +420,7 @@ font = "DejaVu Sans Mono"
 
     #[test]
     fn the_prelude_says_where_it_came_from() {
-        assert!(parse(EXAMPLE).prelude().starts_with("// From mdpdf.toml\n"));
+        assert!(parse(EXAMPLE).prelude().starts_with("// From maddy.toml\n"));
     }
 
     #[test]
@@ -542,7 +542,7 @@ font = "DejaVu Sans Mono"
 
     #[test]
     fn a_loaded_note_names_the_file() {
-        let note = loaded_from(Path::new("/p/mdpdf.toml"));
-        assert!(note.message.contains("/p/mdpdf.toml"));
+        let note = loaded_from(Path::new("/p/maddy.toml"));
+        assert!(note.message.contains("/p/maddy.toml"));
     }
 }

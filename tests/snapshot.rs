@@ -39,7 +39,7 @@ fn render(name: &str) -> String {
         .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
 
     let front = markdown::parse_frontmatter(&source).expect("front matter");
-    // Snapshots render with built-in defaults, so that a stray mdpdf.toml in a
+    // Snapshots render with built-in defaults, so that a stray maddy.toml in a
     // checkout cannot change what they capture.
     let options = CompileOptions::default();
     let config = maddy::config::Config::default();

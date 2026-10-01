@@ -6,11 +6,11 @@
 containing LaTeX-style mathematics into high-quality PDFs — either as a typeset
 **document** or as a widescreen **presentation**.
 
-The binary is called `mdpdf`.
+The binary is called `maddy`.
 
 ```bash
-mdpdf paper.md      # → paper.pdf   (a typeset document)
-mdpdf talk.md       # → talk.pdf    (a 16:9 presentation)
+maddy paper.md      # → paper.pdf   (a typeset document)
+maddy talk.md       # → talk.pdf    (a 16:9 presentation)
 ```
 
 It aims to be `gcc` for Markdown documents, not a publishing framework. The
@@ -62,7 +62,7 @@ fn estimate(x: Matrix, y: Vector) -> Vector {
 ````
 
 ```bash
-mdpdf regression.md
+maddy regression.md
 ```
 
 ### Slides
@@ -108,7 +108,7 @@ cargo install --path .
 If Typst is not installed you can still generate Typst source:
 
 ```bash
-mdpdf --emit typst paper.md
+maddy --emit typst paper.md
 ```
 
 ---
@@ -116,7 +116,7 @@ mdpdf --emit typst paper.md
 ## Usage
 
 ```text
-mdpdf [OPTIONS] <INPUT>
+maddy [OPTIONS] <INPUT>
 
 Arguments:
   <INPUT>                  Markdown source file
@@ -156,7 +156,7 @@ Unknown fields produce warnings, not errors.
 
 ### Configuration
 
-An optional `mdpdf.toml`, looked for beside the document and in each parent
+An optional `maddy.toml`, looked for beside the document and in each parent
 directory, so a project can carry one at its root. `--config` names one
 explicitly.
 
@@ -185,11 +185,11 @@ Configuration is deliberately small. For complete visual control, use
 ### Precedence
 
 ```text
-built-in defaults  →  mdpdf.toml  →  front matter  →  CLI arguments
+built-in defaults  →  maddy.toml  →  front matter  →  CLI arguments
 ```
 
 So `--style dark` overrides `style: academic` in the document, which in turn
-overrides `style` in `mdpdf.toml`.
+overrides `style` in `maddy.toml`.
 
 ---
 
@@ -284,7 +284,7 @@ src/
 ├── main.rs          cli entry point
 ├── cli.rs           argument parsing
 ├── compiler.rs      orchestration
-├── config.rs        mdpdf.toml
+├── config.rs        maddy.toml
 ├── metadata.rs      front-matter metadata
 ├── diagnostics.rs   errors, warnings, spans
 ├── markdown/        front matter + Markdown → IR
