@@ -17,10 +17,11 @@ use std::path::{Path, PathBuf};
 
 use maddy::compiler::CompileOptions;
 use maddy::diagnostics::Diagnostics;
-use maddy::ir::Document;
+use maddy::ir::{Document, Presentation};
 use maddy::markdown;
 use maddy::metadata::DocumentType;
-use maddy::typst::{emit_document, RenderOptions};
+use maddy::templates;
+use maddy::typst::{emit_document, emit_presentation, RenderOptions};
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -30,7 +31,8 @@ fn snapshots() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots")
 }
 
-/// Render a fixture to Typst source.
+/// Render a fixture to Typst source, in whichever mode its front matter asks
+/// for.
 fn render(name: &str) -> String {
     let path = fixtures().join(name);
     let source = std::fs::read_to_string(&path)
@@ -39,17 +41,22 @@ fn render(name: &str) -> String {
     let front = markdown::parse_frontmatter(&source).expect("front matter");
     let options = CompileOptions::default();
     let effective = maddy::compiler::resolve_options(&front.metadata, &options);
-    assert_eq!(effective.document_type, DocumentType::Document);
 
     let parsed = markdown::parse(front.body, front.body_offset, effective.document_type);
     let document = Document::new(front.metadata, parsed.blocks);
 
+    let template = templates::builtin(effective.document_type, effective.style.as_deref())
+        .unwrap_or_else(|error| panic!("{name}: {}", error.message()));
+    let render = RenderOptions::new(template);
     let mut diagnostics = Diagnostics::new();
-    emit_document(
-        &document,
-        &RenderOptions::document_default(),
-        &mut diagnostics,
-    )
+
+    match effective.document_type {
+        DocumentType::Document => emit_document(&document, &render, &mut diagnostics),
+        DocumentType::Slides => {
+            let (presentation, _) = Presentation::from_document(document);
+            emit_presentation(&presentation, &render, &mut diagnostics)
+        }
+    }
     .unwrap_or_else(|error| panic!("rendering {name}: {error}"))
 }
 
@@ -102,6 +109,11 @@ fn regression_matches_its_snapshot() {
 #[test]
 fn rich_matches_its_snapshot() {
     check("rich.md");
+}
+
+#[test]
+fn talk_matches_its_snapshot() {
+    check("talk.md");
 }
 
 #[test]

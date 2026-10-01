@@ -22,12 +22,12 @@ use std::path::{Path, PathBuf};
 
 use crate::cli::{EmitFormat, Verbosity};
 use crate::diagnostics::{io_error, CompileError, Diagnostic, Diagnostics, Result};
-use crate::ir::{Block, Document};
+use crate::ir::{Block, Document, Presentation};
 use crate::markdown;
 use crate::metadata::{DocumentType, Metadata};
 use crate::templates;
 use crate::typst::backend::{CompileContext, ExternalTypstBackend, PdfBackend};
-use crate::typst::{emit_document, RenderOptions};
+use crate::typst::{emit_document, emit_presentation, RenderOptions};
 
 /// Everything the caller can decide, before the document has been read.
 ///
@@ -131,11 +131,16 @@ pub fn compile_source(
     let render = render_options(&effective)?;
     let typst = match effective.document_type {
         DocumentType::Document => emit_document(&document, &render, &mut diagnostics)?,
-        // Presentation rendering is added with the slides milestone.
         DocumentType::Slides => {
-            return Err(CompileError::Internal(
-                "presentation rendering is not implemented yet".into(),
-            ))
+            // Slides are a rendering of the same blocks: segmentation happens
+            // here, after one shared parse.
+            let (presentation, warnings) = Presentation::from_document(document);
+            diagnostics.extend(warnings);
+            log.stage(&format!(
+                "Laying out {} slide(s)...",
+                presentation.page_count()
+            ));
+            emit_presentation(&presentation, &render, &mut diagnostics)?
         }
     };
 
@@ -180,6 +185,9 @@ pub fn resolve_options(metadata: &Metadata, options: &CompileOptions) -> Effecti
 }
 
 /// Choose the template to render with.
+///
+/// A custom template replaces the built-in one entirely and is expected to
+/// implement the same contract.
 fn render_options(effective: &EffectiveOptions) -> Result<RenderOptions> {
     match &effective.template {
         Some(path) => {
@@ -187,7 +195,11 @@ fn render_options(effective: &EffectiveOptions) -> Result<RenderOptions> {
                 .map_err(io_error(format!("reading template {}", path.display())))?;
             Ok(RenderOptions::new(template))
         }
-        None => Ok(RenderOptions::new(templates::document())),
+        None => {
+            let template = templates::builtin(effective.document_type, effective.style.as_deref())
+                .map_err(|error| CompileError::Config(error.message()))?;
+            Ok(RenderOptions::new(template))
+        }
     }
 }
 
