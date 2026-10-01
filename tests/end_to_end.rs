@@ -459,3 +459,169 @@ fn one_pixel_png() -> Vec<u8> {
     ];
     DATA.to_vec()
 }
+
+// -------------------------------------------------------------- presentations
+
+/// The three-slide deck from the specification's first slides stopping point.
+const TALK: &str =
+    "---\ntype: slides\ntitle: Example Presentation\nauthor: Jane Researcher\n---\n\n\
+                    # Question\n\nWhy does this matter?\n\n---\n\n\
+                    # Model\n\n$$\nY_i = X_i^\\top \\beta + \\varepsilon_i\n$$\n\n---\n\n\
+                    # Result\n\nThe coefficient is **positive**.\n";
+
+#[test]
+fn front_matter_selects_presentation_mode() {
+    if !support::typst_available() {
+        support::skip("front_matter_selects_presentation_mode");
+        return;
+    }
+
+    let (directory, input) = workspace("talk.md", TALK);
+    mdpdf().arg(&input).assert().success();
+
+    let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
+    // A title slide plus three content slides.
+    assert_eq!(support::pdf_page_count(&bytes), Some(4));
+}
+
+#[test]
+fn a_presentation_is_sixteen_by_nine() {
+    if !support::typst_available() {
+        support::skip("a_presentation_is_sixteen_by_nine");
+        return;
+    }
+
+    let (directory, input) = workspace("talk.md", TALK);
+    mdpdf().arg(&input).assert().success();
+
+    let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
+    let ratio = support::pdf_aspect_ratio(&bytes).expect("a page size");
+    assert!(
+        (ratio - 16.0 / 9.0).abs() < 0.01,
+        "expected 16:9, got {ratio}"
+    );
+}
+
+#[test]
+fn the_slides_flag_overrides_the_document_type() {
+    if !support::typst_available() {
+        support::skip("the_slides_flag_overrides_the_document_type");
+        return;
+    }
+
+    // The document says `document`; the command line says slides, and wins.
+    let source = "---\ntype: document\n---\n\n# One\n\ntext\n\n---\n\n# Two\n\ntext\n";
+    let (directory, input) = workspace("talk.md", source);
+
+    mdpdf().arg(&input).arg("--slides").assert().success();
+
+    let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
+    // Two slides, and no title slide since there is no title.
+    assert_eq!(support::pdf_page_count(&bytes), Some(2));
+}
+
+#[test]
+fn a_separator_is_a_rule_in_document_mode_and_a_break_in_slides_mode() {
+    if !support::typst_available() {
+        support::skip("a_separator_is_a_rule_in_document_mode_and_a_break_in_slides_mode");
+        return;
+    }
+
+    let source = "# One\n\ntext\n\n---\n\n# Two\n\ntext\n";
+
+    let (document_directory, document_input) = workspace("paper.md", source);
+    mdpdf().arg(&document_input).assert().success();
+    let document = std::fs::read(document_directory.path().join("paper.pdf")).expect("a PDF");
+    assert_eq!(
+        support::pdf_page_count(&document),
+        Some(1),
+        "a document is one flowing page"
+    );
+
+    let (slides_directory, slides_input) = workspace("talk.md", source);
+    mdpdf()
+        .arg(&slides_input)
+        .arg("--slides")
+        .assert()
+        .success();
+    let slides = std::fs::read(slides_directory.path().join("talk.pdf")).expect("a PDF");
+    assert_eq!(
+        support::pdf_page_count(&slides),
+        Some(2),
+        "slides are cut at the separator"
+    );
+}
+
+#[test]
+fn the_presentation_acceptance_deck_compiles() {
+    if !support::typst_available() {
+        support::skip("the_presentation_acceptance_deck_compiles");
+        return;
+    }
+
+    // The deck the specification requires to work.
+    let (directory, input) = fixture("talk.md");
+    mdpdf().arg(&input).assert().success();
+
+    let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
+    assert!(support::is_pdf(&bytes));
+    // A generated title slide plus four content slides.
+    assert_eq!(support::pdf_page_count(&bytes), Some(5));
+
+    let ratio = support::pdf_aspect_ratio(&bytes).expect("a page size");
+    assert!(
+        (ratio - 16.0 / 9.0).abs() < 0.01,
+        "expected 16:9, got {ratio}"
+    );
+}
+
+#[test]
+fn a_deck_without_a_title_has_no_title_slide() {
+    if !support::typst_available() {
+        support::skip("a_deck_without_a_title_has_no_title_slide");
+        return;
+    }
+
+    let (directory, input) = workspace(
+        "talk.md",
+        "---\ntype: slides\n---\n\n# One\n\ntext\n\n---\n\n# Two\n\ntext\n",
+    );
+    mdpdf().arg(&input).assert().success();
+
+    let bytes = std::fs::read(directory.path().join("talk.pdf")).expect("talk.pdf");
+    assert_eq!(support::pdf_page_count(&bytes), Some(2));
+}
+
+#[test]
+fn two_titles_on_one_slide_warns() {
+    if !support::typst_available() {
+        support::skip("two_titles_on_one_slide_warns");
+        return;
+    }
+
+    let (_directory, input) = workspace(
+        "talk.md",
+        "---\ntype: slides\n---\n\n# One\n\n# Two\n\ntext\n",
+    );
+
+    mdpdf()
+        .arg(&input)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("more than one level-one heading"));
+}
+
+#[test]
+fn an_unknown_style_is_a_configuration_error_naming_the_choices() {
+    let (_directory, input) = workspace("talk.md", TALK);
+
+    mdpdf()
+        .arg(&input)
+        .args(["--style", "chartreuse"])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("unknown style `chartreuse`")
+                .and(predicate::str::contains("academic")),
+        );
+}

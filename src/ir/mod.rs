@@ -17,6 +17,7 @@
 mod block;
 mod document;
 mod inline;
+mod presentation;
 
 #[cfg(test)]
 mod tests;
@@ -24,3 +25,4 @@ mod tests;
 pub use block::{Alignment, Block, CodeBlock, Image, ListItem, MathMode, MathSource, Table};
 pub use document::Document;
 pub use inline::{plain_text, Inline};
+pub use presentation::{Presentation, Slide};

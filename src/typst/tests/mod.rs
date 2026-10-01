@@ -4,6 +4,7 @@ mod backend;
 mod document;
 mod escape;
 mod markup;
+mod presentation;
 
 use std::process::Command;
 

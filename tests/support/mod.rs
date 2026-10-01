@@ -69,31 +69,40 @@ pub fn corpus_files() -> Vec<String> {
 
 /// The number of pages in a PDF.
 ///
-/// Read from the page tree's `/Count`, which Typst writes outside its compressed
-/// object streams. The largest value is the root of the tree, and so the total.
-/// This is a deliberately small heuristic: the tests assert page counts, not PDF
-/// structure, and pulling in a PDF parser to do it would not make them stronger.
+/// Counts `/Type /Page` objects, excluding the `/Type /Pages` tree node. The
+/// obvious alternative — reading the page tree's `/Count` — is wrong: Typst also
+/// writes a `/Count` for the document outline, which counts headings, so a
+/// one-page paper with two headings reports two pages.
+///
+/// A deliberately small heuristic: these tests assert page counts, not PDF
+/// structure, and a full PDF parser would not make them stronger.
 pub fn pdf_page_count(pdf: &[u8]) -> Option<usize> {
-    const KEY: &[u8] = b"/Count ";
-    let mut best = None;
+    const KEY: &[u8] = b"/Type";
+    let mut pages = 0;
 
     for start in 0..pdf.len().saturating_sub(KEY.len()) {
         if &pdf[start..start + KEY.len()] != KEY {
             continue;
         }
-        let digits: Vec<u8> = pdf[start + KEY.len()..]
-            .iter()
-            .copied()
-            .take_while(u8::is_ascii_digit)
-            .collect();
-        if digits.is_empty() {
+
+        let rest = &pdf[start + KEY.len()..];
+        let value = rest.iter().position(|byte| !byte.is_ascii_whitespace())?;
+        let rest = &rest[value..];
+
+        if !rest.starts_with(b"/Page") {
             continue;
         }
-        let count: usize = String::from_utf8_lossy(&digits).parse().ok()?;
-        best = Some(best.map_or(count, |previous: usize| previous.max(count)));
+        // `/Pages` is the tree node, not a page.
+        if rest
+            .get(b"/Page".len())
+            .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        {
+            continue;
+        }
+        pages += 1;
     }
 
-    best
+    (pages > 0).then_some(pages)
 }
 
 /// Whether a byte slice looks like a PDF.
@@ -106,4 +115,27 @@ pub fn write_markdown(directory: &Path, name: &str, contents: &str) -> std::path
     let path = directory.join(name);
     std::fs::write(&path, contents).unwrap_or_else(|error| panic!("writing {name}: {error}"));
     path
+}
+
+/// The width-to-height ratio of a PDF's first page.
+///
+/// Read from `/MediaBox`, which Typst writes in plain text.
+pub fn pdf_aspect_ratio(pdf: &[u8]) -> Option<f64> {
+    const KEY: &[u8] = b"/MediaBox";
+    let found = pdf.windows(KEY.len()).position(|window| window == KEY)? + KEY.len();
+    // Typst writes `/MediaBox[...]`, but the space is optional in the format.
+    let bracket = found + pdf[found..].iter().position(|byte| *byte == b'[')?;
+    let start = bracket + 1;
+    let end = start + pdf[start..].iter().position(|byte| *byte == b']')?;
+
+    let numbers: Vec<f64> = String::from_utf8_lossy(&pdf[start..end])
+        .split_whitespace()
+        .filter_map(|value| value.parse().ok())
+        .collect();
+
+    let [left, bottom, right, top] = numbers[..] else {
+        return None;
+    };
+    let height = top - bottom;
+    (height > 0.0).then(|| (right - left) / height)
 }

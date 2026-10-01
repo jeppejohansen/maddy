@@ -1,6 +1,7 @@
 //! Unit tests for the intermediate representation.
 
 use crate::diagnostics::SourceSpan;
+use crate::ir::MathMode;
 use crate::metadata::{DocumentType, Metadata};
 
 use super::*;
@@ -179,4 +180,214 @@ fn a_document_exposes_the_type_from_its_metadata() {
     );
     assert_eq!(document.document_type(), DocumentType::Slides);
     assert!(!document.is_empty());
+}
+
+// ------------------------------------------------------------- presentations
+
+use super::presentation::Presentation;
+
+/// Segment blocks into a presentation, discarding warnings.
+fn slides(blocks: Vec<Block>) -> Vec<Slide> {
+    Presentation::from_document(Document::new(Metadata::default(), blocks))
+        .0
+        .slides
+}
+
+/// Segment blocks, returning the warnings.
+fn segment(blocks: Vec<Block>) -> (Vec<Slide>, Vec<crate::diagnostics::Diagnostic>) {
+    let (presentation, diagnostics) =
+        Presentation::from_document(Document::new(Metadata::default(), blocks));
+    (presentation.slides, diagnostics)
+}
+
+#[test]
+fn a_slide_break_starts_a_new_slide() {
+    let segmented = slides(vec![
+        Block::paragraph(vec![text("one")]),
+        Block::SlideBreak,
+        Block::paragraph(vec![text("two")]),
+    ]);
+
+    assert_eq!(segmented.len(), 2);
+    assert_eq!(
+        segmented[0].blocks,
+        vec![Block::paragraph(vec![text("one")])]
+    );
+    assert_eq!(
+        segmented[1].blocks,
+        vec![Block::paragraph(vec![text("two")])]
+    );
+}
+
+#[test]
+fn blocks_without_any_break_are_one_slide() {
+    let segmented = slides(vec![
+        Block::paragraph(vec![text("one")]),
+        Block::paragraph(vec![text("two")]),
+    ]);
+    assert_eq!(segmented.len(), 1);
+    assert_eq!(segmented[0].blocks.len(), 2);
+}
+
+#[test]
+fn a_leading_level_one_heading_becomes_the_slide_title() {
+    let segmented = slides(vec![
+        Block::heading(1, vec![text("Motivation")]),
+        Block::paragraph(vec![text("Why care?")]),
+    ]);
+
+    assert_eq!(segmented[0].title, Some(vec![text("Motivation")]));
+    // The heading is lifted out of the body rather than rendered twice.
+    assert_eq!(
+        segmented[0].blocks,
+        vec![Block::paragraph(vec![text("Why care?")])]
+    );
+}
+
+#[test]
+fn a_slide_does_not_require_a_title() {
+    let segmented = slides(vec![Block::Math(MathSource::display("Y = X"))]);
+    assert_eq!(segmented[0].title, None);
+    assert_eq!(segmented[0].blocks.len(), 1);
+}
+
+#[test]
+fn lower_level_headings_remain_body_content() {
+    let segmented = slides(vec![
+        Block::heading(1, vec![text("Results")]),
+        Block::heading(2, vec![text("Main result")]),
+        Block::heading(2, vec![text("Robustness")]),
+    ]);
+
+    assert_eq!(segmented[0].title, Some(vec![text("Results")]));
+    assert_eq!(segmented[0].blocks.len(), 2);
+}
+
+#[test]
+fn a_level_one_heading_that_is_not_first_stays_in_the_body() {
+    let segmented = slides(vec![
+        Block::paragraph(vec![text("intro")]),
+        Block::heading(1, vec![text("Later")]),
+    ]);
+
+    assert_eq!(segmented[0].title, None);
+    assert_eq!(segmented[0].blocks.len(), 2);
+}
+
+#[test]
+fn a_second_level_one_heading_warns() {
+    let (segmented, diagnostics) = segment(vec![
+        Block::heading(1, vec![text("First")]),
+        Block::heading(1, vec![text("Second")]),
+    ]);
+
+    assert_eq!(segmented[0].title, Some(vec![text("First")]));
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics[0]
+        .message
+        .contains("more than one level-one heading"));
+    assert!(diagnostics[0].notes[0].contains("---"));
+}
+
+#[test]
+fn a_slide_with_one_title_does_not_warn() {
+    let (_, diagnostics) = segment(vec![
+        Block::heading(1, vec![text("Only")]),
+        Block::heading(2, vec![text("Sub")]),
+    ]);
+    assert!(diagnostics.is_empty());
+}
+
+#[test]
+fn a_leading_separator_does_not_produce_a_blank_slide() {
+    let segmented = slides(vec![Block::SlideBreak, Block::paragraph(vec![text("one")])]);
+    assert_eq!(segmented.len(), 1);
+}
+
+#[test]
+fn consecutive_separators_do_not_produce_blank_slides() {
+    let segmented = slides(vec![
+        Block::paragraph(vec![text("one")]),
+        Block::SlideBreak,
+        Block::SlideBreak,
+        Block::paragraph(vec![text("two")]),
+    ]);
+    assert_eq!(segmented.len(), 2);
+}
+
+#[test]
+fn a_trailing_separator_does_not_produce_a_blank_slide() {
+    let segmented = slides(vec![Block::paragraph(vec![text("one")]), Block::SlideBreak]);
+    assert_eq!(segmented.len(), 1);
+}
+
+#[test]
+fn an_empty_document_has_no_slides() {
+    assert!(slides(vec![]).is_empty());
+    assert!(Slide::default().is_empty());
+}
+
+#[test]
+fn a_title_slide_is_generated_when_metadata_carries_a_title() {
+    let document = Document::new(
+        Metadata {
+            title: Some("Peer Effects".into()),
+            ..Metadata::default()
+        },
+        vec![Block::paragraph(vec![text("one")])],
+    );
+    let (presentation, _) = Presentation::from_document(document);
+
+    assert!(presentation.has_title_slide());
+    assert_eq!(presentation.page_count(), 2);
+}
+
+#[test]
+fn no_title_means_no_title_slide() {
+    let document = Document::new(
+        Metadata::default(),
+        vec![Block::paragraph(vec![text("one")])],
+    );
+    let (presentation, _) = Presentation::from_document(document);
+
+    assert!(!presentation.has_title_slide());
+    assert_eq!(presentation.page_count(), 1);
+}
+
+#[test]
+fn segmentation_carries_the_metadata_through() {
+    let metadata = Metadata {
+        author: Some("Jane".into()),
+        ..Metadata::default()
+    };
+    let document = Document::new(metadata.clone(), vec![]);
+    assert_eq!(Presentation::from_document(document).0.metadata, metadata);
+}
+
+#[test]
+fn a_slide_span_covers_the_blocks_that_carry_one() {
+    let blocks = vec![
+        Block::Heading {
+            level: 1,
+            content: vec![text("T")],
+            span: crate::diagnostics::SourceSpan::new(10, 20),
+        },
+        Block::Math(MathSource::new(
+            "x",
+            MathMode::Display,
+            crate::diagnostics::SourceSpan::new(30, 40),
+        )),
+    ];
+    assert_eq!(
+        slides(blocks)[0].span,
+        Some(crate::diagnostics::SourceSpan::new(10, 40))
+    );
+}
+
+#[test]
+fn a_slide_of_only_untracked_blocks_has_no_span() {
+    assert_eq!(
+        slides(vec![Block::paragraph(vec![text("one")])])[0].span,
+        None
+    );
 }
