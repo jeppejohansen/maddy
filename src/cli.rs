@@ -9,6 +9,9 @@ use std::process::ExitCode;
 
 use clap::{Parser, ValueEnum};
 
+use crate::compiler::{self, CompileOptions};
+use crate::diagnostics::{CompileError, Diagnostic};
+
 /// What the compiler should write to disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
 #[value(rename_all = "lower")]
@@ -103,6 +106,20 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Translate the parsed arguments into compiler options.
+    pub fn options(&self) -> CompileOptions {
+        CompileOptions {
+            output: self.output.clone(),
+            emit: self.emit,
+            force_slides: self.slides,
+            style: self.style.clone(),
+            template: self.template.clone(),
+            keep_typst: self.keep_typst,
+            strict: self.strict,
+            verbosity: self.verbosity(),
+        }
+    }
+
     pub fn verbosity(&self) -> Verbosity {
         match (self.quiet, self.verbose) {
             (true, _) => Verbosity::Quiet,
@@ -115,10 +132,56 @@ impl Cli {
 /// Parse arguments and run the compiler, returning the process exit code.
 pub fn run() -> ExitCode {
     let cli = Cli::parse();
-    let _ = cli;
-    // Compilation is wired up in `crate::compiler`; see the milestone order in
-    // the specification.
-    ExitCode::from(1)
+    match run_once(&cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+/// Compile once, reporting any failure. Returns the exit code on failure.
+fn run_once(cli: &Cli) -> std::result::Result<(), u8> {
+    let path = cli.input.display().to_string();
+
+    // The source is read here rather than inside the compiler so that a
+    // diagnostic can still be rendered with its snippet when compilation fails.
+    let source = match std::fs::read_to_string(&cli.input) {
+        Ok(source) => source,
+        Err(error) => {
+            let error = CompileError::Io {
+                context: format!("reading {path}"),
+                source: error,
+            };
+            report(&error, &path, "");
+            return Err(error.exit_code());
+        }
+    };
+
+    match compiler::compile_source(&cli.input, &source, &cli.options()) {
+        Ok(result) => {
+            print_diagnostics(&result.diagnostics, &path, &source);
+            if cli.verbosity() != Verbosity::Quiet {
+                for output in &result.outputs {
+                    println!("Compiled {path} → {}", output.display());
+                }
+            }
+            Ok(())
+        }
+        Err(error) => {
+            report(&error, &path, &source);
+            Err(error.exit_code())
+        }
+    }
+}
+
+/// Print an error as a source-annotated diagnostic.
+fn report(error: &CompileError, path: &str, source: &str) {
+    print_diagnostics(&error.diagnostics(), path, source);
+}
+
+fn print_diagnostics(diagnostics: &[Diagnostic], path: &str, source: &str) {
+    for diagnostic in diagnostics {
+        eprintln!("{}\n", diagnostic.render(path, source));
+    }
 }
 
 #[cfg(test)]

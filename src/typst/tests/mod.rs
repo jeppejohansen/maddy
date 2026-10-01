@@ -1,5 +1,6 @@
 //! Shared helpers for the Typst layer's tests.
 
+mod backend;
 mod document;
 mod escape;
 mod markup;

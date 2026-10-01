@@ -66,3 +66,44 @@ pub fn corpus_files() -> Vec<String> {
     names.sort();
     names
 }
+
+/// The number of pages in a PDF.
+///
+/// Read from the page tree's `/Count`, which Typst writes outside its compressed
+/// object streams. The largest value is the root of the tree, and so the total.
+/// This is a deliberately small heuristic: the tests assert page counts, not PDF
+/// structure, and pulling in a PDF parser to do it would not make them stronger.
+pub fn pdf_page_count(pdf: &[u8]) -> Option<usize> {
+    const KEY: &[u8] = b"/Count ";
+    let mut best = None;
+
+    for start in 0..pdf.len().saturating_sub(KEY.len()) {
+        if &pdf[start..start + KEY.len()] != KEY {
+            continue;
+        }
+        let digits: Vec<u8> = pdf[start + KEY.len()..]
+            .iter()
+            .copied()
+            .take_while(u8::is_ascii_digit)
+            .collect();
+        if digits.is_empty() {
+            continue;
+        }
+        let count: usize = String::from_utf8_lossy(&digits).parse().ok()?;
+        best = Some(best.map_or(count, |previous: usize| previous.max(count)));
+    }
+
+    best
+}
+
+/// Whether a byte slice looks like a PDF.
+pub fn is_pdf(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"%PDF-")
+}
+
+/// Write a Markdown file into a directory and return its path.
+pub fn write_markdown(directory: &Path, name: &str, contents: &str) -> std::path::PathBuf {
+    let path = directory.join(name);
+    std::fs::write(&path, contents).unwrap_or_else(|error| panic!("writing {name}: {error}"));
+    path
+}
