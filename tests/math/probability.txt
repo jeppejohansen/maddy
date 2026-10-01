@@ -1,0 +1,14 @@
+\Pr(Y = 1)
+\Pr(Y = 1 \mid X)
+E[Y]
+E[Y \mid X]
+\mathbb E[Y \mid X]
+\mathbb E[\varepsilon_i \mid X_i] = 0
+\operatorname{Var}(X)
+\operatorname{Cov}(X, Y)
+\mathcal{N}(\mu, \sigma^2)
+X \sim \mathcal{N}(0, 1)
+p_i = \operatorname{logit}^{-1}\left(X_i^\top\beta + \lambda \bar p_{-i}\right)
+\Pr(A \cup B) = \Pr(A) + \Pr(B) - \Pr(A \cap B)
+\hat p
+f(x \mid \theta)

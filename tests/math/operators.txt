@@ -1,0 +1,21 @@
+\sum_{i=1}^n x_i
+\sum_{i=1}^{N}
+\prod_{i=1}^n x_i
+\bigcup_{i=1}^n A_i
+\bigcap_{i=1}^n A_i
+\lim_{n\to\infty} x_n
+\max_{x} f(x)
+\min_{x} f(x)
+\sup_{x \in A} f(x)
+\inf_{x \in A} f(x)
+\log x
+\ln x
+\exp(x)
+\sin x + \cos x
+\tan \theta
+\det(A)
+\operatorname{Var}(X)
+\operatorname{Cov}(X, Y)
+\operatorname{logit}^{-1}
+\argmax_x f(x)
+\operatorname*{argmin}_\theta L(\theta)

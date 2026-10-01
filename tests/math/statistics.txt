@@ -1,0 +1,12 @@
+Y_i = X_i^\top \beta + \varepsilon_i
+\hat\beta = (X^\top X)^{-1}X^\top Y
+\hat\beta = \left(\sum_{i=1}^{n} X_i X_i^\top\right)^{-1}\sum_{i=1}^{n} X_i Y_i
+\bar{X}_n = \frac{1}{n}\sum_{i=1}^n X_i
+s^2 = \frac{1}{n-1}\sum_{i=1}^n (X_i - \bar X)^2
+\sqrt{n}(\hat\theta - \theta) \to \mathcal{N}(0, V)
+\hat\theta \xrightarrow{p} \theta
+R^2 = 1 - \frac{\text{SSR}}{\text{SST}}
+t = \frac{\hat\beta}{\operatorname{se}(\hat\beta)}
+\beta \text{ is a } K \times 1 \text{ vector}
+E[m(\psi,\theta)\mid\psi] = 0
+Y = \alpha_i + \psi_j + m(\alpha_i,\psi_j) + \varepsilon

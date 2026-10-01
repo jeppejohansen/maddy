@@ -1,0 +1,6 @@
+\begin{aligned} y &= x + 1 \\ z &= y + 2 \end{aligned}
+\begin{aligned} \hat\beta &= (X^\top X)^{-1} X^\top Y \\ &= \beta + (X^\top X)^{-1} X^\top \varepsilon \end{aligned}
+\begin{cases} x & y > 0 \\ z & \text{otherwise} \end{cases}
+\begin{cases} 1 & \text{if } x \ge 0 \\ 0 & \text{if } x < 0 \end{cases}
+\overbrace{x + y}^{s}
+\underbrace{x + y}_{s}

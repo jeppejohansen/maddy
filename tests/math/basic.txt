@@ -1,0 +1,22 @@
+# One expression per line. Blank lines and `#` comments are ignored.
+# Every expression here must parse, translate, and compile under Typst.
+x
+xy
+x + y
+x - y
+123
+0.42
+2x
+a = b
+f(x)
+(x)
+[x]
+\{x\}
+x \cdot y
+x \times y
+x \div y
+\pm 1
+a, b, c
+a; b
+x'
+x''

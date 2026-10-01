@@ -1,0 +1,11 @@
+\begin{pmatrix} a & b \\ c & d \end{pmatrix}
+\begin{bmatrix} a & b \\ c & d \end{bmatrix}
+\begin{vmatrix} a & b \\ c & d \end{vmatrix}
+\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}
+\begin{Bmatrix} a & b \\ c & d \end{Bmatrix}
+\begin{matrix} a & b \\ c & d \end{matrix}
+\begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix}
+\begin{pmatrix} \sigma^2 & 0 \\ 0 & \sigma^2 \end{pmatrix}
+\begin{array}{cc} a & b \\ c & d \end{array}
+\begin{array}{ll} a & b \end{array}
+\begin{array}{rr} a & b \end{array}

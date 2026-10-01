@@ -1,0 +1,17 @@
+x \in A
+x \notin A
+A \subset B
+A \subseteq B
+A \supseteq B
+A \cup B
+A \cap B
+A \setminus B
+\emptyset
+A^c
+\{x : x > 0\}
+\{0, 1\}
+a_i \in \{0,1\}
+\forall x \in A
+\exists x \in A
+X_i \in \mathbb R^K
+\mathbb{N} \subset \mathbb{Z} \subset \mathbb{Q} \subset \mathbb{R}

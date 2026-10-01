@@ -31,6 +31,7 @@ pub mod cli;
 pub mod diagnostics;
 pub mod ir;
 pub mod markdown;
+pub mod math;
 pub mod metadata;
 pub mod typst;
 
