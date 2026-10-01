@@ -7,6 +7,7 @@
 //! Document IR  →  markup::Renderer  →  document.rs  →  Typst source
 //! ```
 
+pub mod backend;
 pub mod document;
 pub mod escape;
 pub mod markup;
@@ -14,6 +15,7 @@ pub mod markup;
 #[cfg(test)]
 pub(crate) mod tests;
 
+pub use backend::{CompileContext, ExternalTypstBackend, PdfBackend};
 pub use document::emit_document;
 
 /// What a renderer needs besides the document itself.

@@ -28,6 +28,7 @@
 //! and no Typst syntax appears outside the [`typst`] module.
 
 pub mod cli;
+pub mod compiler;
 pub mod diagnostics;
 pub mod ir;
 pub mod markdown;

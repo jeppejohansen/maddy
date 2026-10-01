@@ -310,11 +310,11 @@ The compiler is deliberately narrow. That narrowness is the feature.
 
 Implemented in the milestone order set out in [`spec.md`](spec.md):
 
-- [ ] **1** — basic document compiler
-- [ ] **2** — mathematics
+- [x] **1** — basic document compiler
+- [x] **2** — mathematics
 - [ ] **3** — slides
 - [ ] **4** — five slide themes
-- [ ] **5** — richer Markdown
+- [x] **5** — richer Markdown
 - [ ] **6** — diagnostics
 - [ ] **7** — configuration
 - [ ] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
