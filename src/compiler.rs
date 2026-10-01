@@ -21,6 +21,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli::{EmitFormat, Verbosity};
+use crate::config::Config;
 use crate::diagnostics::{io_error, CompileError, Diagnostic, Diagnostics, Result};
 use crate::ir::{Block, Document, Presentation};
 use crate::markdown;
@@ -37,6 +38,8 @@ use crate::typst::{emit_document, emit_presentation, RenderOptions};
 #[derive(Debug, Clone, Default)]
 pub struct CompileOptions {
     pub output: Option<PathBuf>,
+    /// An explicit `--config` path; otherwise one is discovered.
+    pub config: Option<PathBuf>,
     pub emit: EmitFormat,
     /// Set by `--slides`; overrides the document's own type.
     pub force_slides: bool,
@@ -58,6 +61,8 @@ pub struct EffectiveOptions {
     pub verbosity: Verbosity,
     pub output: Option<PathBuf>,
     pub template: Option<PathBuf>,
+    /// Project configuration, already merged into the precedence chain.
+    pub config: Config,
 }
 
 /// What a compilation produced.
@@ -108,7 +113,13 @@ pub fn compile_source(
 
     log.stage("Reading metadata...");
     let front = markdown::parse_frontmatter(source)?;
-    let effective = resolve_options(&front.metadata, options);
+
+    let (config, config_path) = Config::discover(input, options.config.as_deref())?;
+    if let Some(path) = &config_path {
+        log.stage(&format!("Using configuration from {}...", path.display()));
+    }
+
+    let effective = resolve_options(&front.metadata, &config, options);
 
     let mut diagnostics = if effective.strict {
         Diagnostics::strict()
@@ -164,7 +175,11 @@ pub fn compile_source(
 /// ```text
 /// built-in defaults  →  configuration file  →  front matter  →  CLI arguments
 /// ```
-pub fn resolve_options(metadata: &Metadata, options: &CompileOptions) -> EffectiveOptions {
+pub fn resolve_options(
+    metadata: &Metadata,
+    config: &Config,
+    options: &CompileOptions,
+) -> EffectiveOptions {
     let document_type = if options.force_slides {
         DocumentType::Slides
     } else {
@@ -173,14 +188,20 @@ pub fn resolve_options(metadata: &Metadata, options: &CompileOptions) -> Effecti
 
     EffectiveOptions {
         document_type,
-        // A style given on the command line wins over the document's own.
-        style: options.style.clone().or_else(|| metadata.style.clone()),
+        // Each source overrides the one before it: configuration, then the
+        // document's front matter, then the command line.
+        style: options
+            .style
+            .clone()
+            .or_else(|| metadata.style.clone())
+            .or_else(|| config.slides.style.clone()),
         emit: options.emit,
         keep_typst: options.keep_typst,
         strict: options.strict,
         verbosity: options.verbosity,
         output: options.output.clone(),
         template: options.template.clone(),
+        config: config.clone(),
     }
 }
 
@@ -191,14 +212,17 @@ pub fn resolve_options(metadata: &Metadata, options: &CompileOptions) -> Effecti
 fn render_options(effective: &EffectiveOptions) -> Result<RenderOptions> {
     match &effective.template {
         Some(path) => {
+            // A custom template receives configuration too: the rules are
+            // emitted after it applies its own, so they override it just as
+            // they override a built-in theme.
             let template = std::fs::read_to_string(path)
                 .map_err(io_error(format!("reading template {}", path.display())))?;
-            Ok(RenderOptions::new(template))
+            Ok(RenderOptions::new(template).with_prelude(effective.config.prelude()))
         }
         None => {
             let template = templates::builtin(effective.document_type, effective.style.as_deref())
                 .map_err(|error| CompileError::Config(error.message()))?;
-            Ok(RenderOptions::new(template))
+            Ok(RenderOptions::new(template).with_prelude(effective.config.prelude()))
         }
     }
 }

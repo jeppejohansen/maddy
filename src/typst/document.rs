@@ -26,10 +26,20 @@ pub fn emit_document(
     out.push_str("\n\n");
     out.push_str(&show_rule("article", &document.metadata));
     out.push_str("\n\n");
+    out.push_str(&prelude(options));
     out.push_str(&body);
     out.push('\n');
 
     Ok(out)
+}
+
+/// Configuration rules, placed after the template's show rule so that they
+/// override whatever the template set.
+pub(super) fn prelude(options: &RenderOptions) -> String {
+    if options.prelude.trim().is_empty() {
+        return String::new();
+    }
+    format!("{}\n", options.prelude.trim_end())
 }
 
 /// The show rule that applies a template, carrying the document's metadata.

@@ -39,8 +39,11 @@ fn render(name: &str) -> String {
         .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
 
     let front = markdown::parse_frontmatter(&source).expect("front matter");
+    // Snapshots render with built-in defaults, so that a stray mdpdf.toml in a
+    // checkout cannot change what they capture.
     let options = CompileOptions::default();
-    let effective = maddy::compiler::resolve_options(&front.metadata, &options);
+    let config = maddy::config::Config::default();
+    let effective = maddy::compiler::resolve_options(&front.metadata, &config, &options);
 
     let parsed = markdown::parse(front.body, front.body_offset, effective.document_type);
     let document = Document::new(front.metadata, parsed.blocks);

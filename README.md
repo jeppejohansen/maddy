@@ -154,13 +154,42 @@ style: academic
 
 Unknown fields produce warnings, not errors.
 
-### Configuration precedence
+### Configuration
+
+An optional `mdpdf.toml`, looked for beside the document and in each parent
+directory, so a project can carry one at its root. `--config` names one
+explicitly.
+
+```toml
+[document]
+paper = "a4"                 # any Typst paper name
+font = "Libertinus Serif"
+font-size = "11pt"
+
+[page]
+margin = "25mm"
+
+[headings]
+numbered = false
+
+[code]
+font = "DejaVu Sans Mono"
+
+[slides]
+style = "academic"
+```
+
+Configuration is deliberately small. For complete visual control, use
+`--template`.
+
+### Precedence
 
 ```text
 built-in defaults  →  mdpdf.toml  →  front matter  →  CLI arguments
 ```
 
-So `--style dark` overrides `style: academic` in the document.
+So `--style dark` overrides `style: academic` in the document, which in turn
+overrides `style` in `mdpdf.toml`.
 
 ---
 
@@ -316,7 +345,7 @@ Implemented in the milestone order set out in [`spec.md`](spec.md):
 - [x] **4** — five slide themes
 - [x] **5** — richer Markdown
 - [x] **6** — diagnostics
-- [ ] **7** — configuration
+- [x] **7** — configuration
 - [ ] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
 - [ ] **9** — embedded Typst compiler
 

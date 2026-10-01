@@ -705,3 +705,205 @@ fn a_missing_template_is_an_environment_error() {
             "reading template no-such-template.typ",
         ));
 }
+
+// ------------------------------------------------------------ configuration
+
+/// The configuration example from the specification.
+const CONFIG: &str = "[document]\npaper = \"a5\"\nfont = \"Libertinus Serif\"\n\
+                      font-size = \"13pt\"\n\n[page]\nmargin = \"15mm\"\n\n\
+                      [headings]\nnumbered = true\n";
+
+#[test]
+fn configuration_beside_the_document_is_applied() {
+    if !support::typst_available() {
+        support::skip("configuration_beside_the_document_is_applied");
+        return;
+    }
+
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    std::fs::write(directory.path().join("mdpdf.toml"), CONFIG).expect("writing config");
+
+    mdpdf().arg(&input).arg("--keep-typst").assert().success();
+
+    let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
+    assert!(typst.contains("// From mdpdf.toml"), "{typst}");
+    assert!(
+        typst.contains(r#"#set page(paper: "a5", margin: 15mm)"#),
+        "{typst}"
+    );
+    assert!(
+        typst.contains(r#"#set text(font: "Libertinus Serif", size: 13pt)"#),
+        "{typst}"
+    );
+    assert!(
+        typst.contains(r#"#set heading(numbering: "1.1")"#),
+        "{typst}"
+    );
+}
+
+#[test]
+fn configuration_rules_follow_the_template_so_they_override_it() {
+    // The template applies its own rules first; configuration has to come after
+    // or it would be the thing being overridden.
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    std::fs::write(directory.path().join("mdpdf.toml"), CONFIG).expect("writing config");
+
+    mdpdf()
+        .arg(&input)
+        .args(["--emit", "typst"])
+        .assert()
+        .success();
+
+    let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
+    let template = typst.find("#let article(").expect("the template");
+    let rules = typst
+        .find("// From mdpdf.toml")
+        .expect("the configuration rules");
+    let body = typst.find("= Heading").expect("the body");
+
+    assert!(
+        template < rules && rules < body,
+        "configuration sits between the two"
+    );
+}
+
+#[test]
+fn an_explicit_config_path_is_used() {
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    // One beside the document, which must be ignored in favour of the explicit
+    // one.
+    std::fs::write(
+        directory.path().join("mdpdf.toml"),
+        "[page]\nmargin = \"99mm\"\n",
+    )
+    .expect("writing the nearby config");
+    let explicit = directory.path().join("other.toml");
+    std::fs::write(&explicit, "[page]\nmargin = \"7mm\"\n").expect("writing the explicit config");
+
+    mdpdf()
+        .arg(&input)
+        .arg("--config")
+        .arg(&explicit)
+        .args(["--emit", "typst"])
+        .assert()
+        .success();
+
+    let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
+    assert!(typst.contains("margin: 7mm"), "{typst}");
+    assert!(!typst.contains("margin: 99mm"), "{typst}");
+}
+
+#[test]
+fn a_broken_configuration_file_is_a_configuration_error() {
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    std::fs::write(
+        directory.path().join("mdpdf.toml"),
+        "[document]\npapers = \"a4\"\n",
+    )
+    .expect("writing config");
+
+    mdpdf()
+        .arg(&input)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("mdpdf.toml").and(predicate::str::contains("papers")));
+}
+
+#[test]
+fn a_missing_explicit_config_is_an_environment_error() {
+    let (_directory, input) = workspace("paper.md", SIMPLE);
+
+    mdpdf()
+        .arg(&input)
+        .args(["--config", "no-such-config.toml"])
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains(
+            "reading configuration no-such-config.toml",
+        ));
+}
+
+#[test]
+fn the_full_precedence_chain_resolves_in_order() {
+    // Configuration, then front matter, then the command line.
+    let with_style = |front: &str, args: &[&str], expected: &str| {
+        let source = format!("---\ntype: slides\n{front}---\n\n# One\n\ntext\n");
+        let (directory, input) = workspace("talk.md", &source);
+        std::fs::write(
+            directory.path().join("mdpdf.toml"),
+            "[slides]\nstyle = \"mono\"\n",
+        )
+        .expect("writing config");
+
+        let mut command = mdpdf();
+        command
+            .arg(&input)
+            .args(["--emit", "typst"])
+            .args(args)
+            .assert()
+            .success();
+
+        let typst = std::fs::read_to_string(directory.path().join("talk.typ")).expect("talk.typ");
+        assert!(
+            typst.contains(expected),
+            "expected {expected:?} in the generated source"
+        );
+    };
+
+    // Configuration alone.
+    with_style("", &[], "The mono slide theme");
+    // Front matter beats configuration.
+    with_style("style: dark\n", &[], "The dark slide theme");
+    // The command line beats both.
+    with_style(
+        "style: dark\n",
+        &["--style", "bold"],
+        "The bold slide theme",
+    );
+}
+
+#[test]
+fn a_custom_template_still_receives_configuration() {
+    if !support::typst_available() {
+        support::skip("a_custom_template_still_receives_configuration");
+        return;
+    }
+
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    let template = directory.path().join("custom.typ");
+    std::fs::write(
+        &template,
+        "#let article(title: none, subtitle: none, author: none, date: none, body) = {\n  \
+         set page(paper: \"a4\")\n  body\n}\n",
+    )
+    .expect("writing the template");
+    std::fs::write(
+        directory.path().join("mdpdf.toml"),
+        "[page]\nmargin = \"7mm\"\n",
+    )
+    .expect("writing config");
+
+    mdpdf()
+        .arg(&input)
+        .arg("--template")
+        .arg(&template)
+        .args(["--emit", "typst"])
+        .assert()
+        .success();
+
+    let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
+    assert!(typst.contains("margin: 7mm"), "{typst}");
+}
+
+#[test]
+fn no_configuration_file_is_not_an_error() {
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    mdpdf()
+        .arg(&input)
+        .args(["--emit", "typst"])
+        .assert()
+        .success();
+
+    let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
+    assert!(!typst.contains("// From mdpdf.toml"), "{typst}");
+}
