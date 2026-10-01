@@ -339,6 +339,15 @@ pub enum CompileError {
 }
 
 impl CompileError {
+    /// The underlying tool output, when there is more of it than a diagnostic
+    /// shows. Printed by `--verbose`.
+    pub fn full_details(&self) -> Option<&str> {
+        match self {
+            CompileError::TypstCompile { details } => Some(details),
+            _ => None,
+        }
+    }
+
     /// Exit code for this error, per the specification:
     ///
     /// ```text
@@ -377,7 +386,7 @@ impl CompileError {
             CompileError::Diagnostics(entries) => entries.clone(),
             CompileError::TypstCompile { details } => {
                 vec![Diagnostic::error("generated Typst failed to compile")
-                    .with_note(format!("Caused by:\n    {}", details.trim()))
+                    .with_note(format!("Caused by:\n{}", indent(&truncate(details, 8), 4)))
                     .with_note("Run with --keep-typst to inspect generated source.")]
             }
             CompileError::TypstMissing => vec![Diagnostic::error("Typst executable was not found")
@@ -385,6 +394,35 @@ impl CompileError {
             other => vec![Diagnostic::error(other.to_string())],
         }
     }
+}
+
+/// Keep the first `lines` lines, noting how many were dropped.
+///
+/// A failure in generated Typst usually means a bug in the emitter or an invalid
+/// user template, and the first few lines say which. Pages of subprocess output
+/// bury that, so the rest is available through `-v` instead.
+fn truncate(text: &str, lines: usize) -> String {
+    let text = text.trim_end();
+    let total = text.lines().count();
+    if total <= lines {
+        return text.to_string();
+    }
+
+    let kept: Vec<&str> = text.lines().take(lines).collect();
+    format!(
+        "{}\n... {} more line(s); run with --verbose for the full output",
+        kept.join("\n"),
+        total - lines
+    )
+}
+
+/// Indent every line of `text` by `spaces`.
+fn indent(text: &str, spaces: usize) -> String {
+    let pad = " ".repeat(spaces);
+    text.lines()
+        .map(|line| format!("{pad}{line}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Convenience for attaching context to an I/O failure.
@@ -668,5 +706,71 @@ mod tests {
         ));
         assert_eq!(error.to_string(), "reading paper.md: denied");
         assert_eq!(error.exit_code(), 3);
+    }
+}
+
+#[cfg(test)]
+mod reporting_tests {
+    use super::*;
+
+    #[test]
+    fn short_tool_output_is_shown_in_full() {
+        let error = CompileError::TypstCompile {
+            details: "error: unknown variable\n  at line 4".into(),
+        };
+        let note = &error.diagnostics()[0].notes[0];
+
+        assert!(note.contains("unknown variable"), "{note}");
+        assert!(!note.contains("more line"), "{note}");
+    }
+
+    #[test]
+    fn long_tool_output_is_truncated_with_a_pointer_to_verbose() {
+        let details: String = (1..=30).map(|line| format!("line {line}\n")).collect();
+        let error = CompileError::TypstCompile {
+            details: details.clone(),
+        };
+        let note = &error.diagnostics()[0].notes[0];
+
+        // The first lines say what went wrong; the rest would bury it.
+        assert!(note.contains("line 1\n"), "{note}");
+        assert!(note.contains("line 8"), "{note}");
+        assert!(!note.contains("line 9"), "{note}");
+        assert!(note.contains("22 more line(s)"), "{note}");
+        assert!(note.contains("--verbose"), "{note}");
+
+        // Nothing is lost: the full text stays available.
+        assert_eq!(error.full_details(), Some(details.as_str()));
+    }
+
+    #[test]
+    fn tool_output_is_indented_under_its_heading() {
+        let error = CompileError::TypstCompile {
+            details: "oops".into(),
+        };
+        assert_eq!(error.diagnostics()[0].notes[0], "Caused by:\n    oops");
+    }
+
+    #[test]
+    fn errors_without_tool_output_have_no_full_details() {
+        assert_eq!(CompileError::TypstMissing.full_details(), None);
+        assert_eq!(CompileError::Config("x".into()).full_details(), None);
+    }
+
+    #[test]
+    fn truncation_keeps_exactly_the_requested_lines() {
+        assert_eq!(truncate("a\nb\nc", 8), "a\nb\nc");
+        assert_eq!(truncate("a\nb\nc", 3), "a\nb\nc");
+        assert!(truncate("a\nb\nc", 2).starts_with("a\nb\n... 1 more line(s)"));
+    }
+
+    #[test]
+    fn truncation_ignores_trailing_blank_lines() {
+        assert_eq!(truncate("a\nb\n\n\n", 8), "a\nb");
+    }
+
+    #[test]
+    fn indentation_applies_to_every_line() {
+        assert_eq!(indent("a\nb", 2), "  a\n  b");
     }
 }

@@ -315,7 +315,7 @@ Implemented in the milestone order set out in [`spec.md`](spec.md):
 - [x] **3** — slides
 - [x] **4** — five slide themes
 - [x] **5** — richer Markdown
-- [ ] **6** — diagnostics
+- [x] **6** — diagnostics
 - [ ] **7** — configuration
 - [ ] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
 - [ ] **9** — embedded Typst compiler

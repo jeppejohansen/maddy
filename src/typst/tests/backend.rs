@@ -83,3 +83,10 @@ fn a_large_document_does_not_deadlock() {
         "a long document should produce a substantial PDF"
     );
 }
+
+#[test]
+fn the_context_is_quiet_by_default() {
+    assert!(!CompileContext::new(".").verbose);
+    assert!(CompileContext::new(".").verbose(true).verbose);
+    assert!(!CompileContext::for_source(Path::new("paper.md")).verbose);
+}

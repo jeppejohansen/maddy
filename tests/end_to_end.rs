@@ -625,3 +625,83 @@ fn an_unknown_style_is_a_configuration_error_naming_the_choices() {
                 .and(predicate::str::contains("academic")),
         );
 }
+
+// ------------------------------------------------- generated-Typst failures
+
+/// A template that is valid Rust-side but fails to compile, standing in for the
+/// two things that can go wrong here: an emitter bug or an invalid user
+/// template.
+const BROKEN_TEMPLATE: &str = "#let article(title: none, subtitle: none, author: none, \
+                               date: none, body) = {\n  #one\n  #two\n  #three\n  #four\n  \
+                               #five\n  body\n}\n";
+
+#[test]
+fn a_failing_template_reports_concisely_and_points_at_keep_typst() {
+    if !support::typst_available() {
+        support::skip("a_failing_template_reports_concisely_and_points_at_keep_typst");
+        return;
+    }
+
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    let template = directory.path().join("broken.typ");
+    std::fs::write(&template, BROKEN_TEMPLATE).expect("writing the template");
+
+    let output = mdpdf()
+        .arg(&input)
+        .arg("--template")
+        .arg(&template)
+        .assert()
+        .code(1)
+        .stderr(
+            predicate::str::contains("generated Typst failed to compile")
+                .and(predicate::str::contains(
+                    "run with --verbose for the full output",
+                ))
+                .and(predicate::str::contains("--keep-typst")),
+        )
+        .get_output()
+        .stderr
+        .clone();
+
+    // Concise by default: pages of subprocess output would bury the first line.
+    let lines = String::from_utf8_lossy(&output).lines().count();
+    assert!(
+        lines < 20,
+        "the default report should be short, got {lines} lines"
+    );
+}
+
+#[test]
+fn verbose_shows_the_whole_compiler_output() {
+    if !support::typst_available() {
+        support::skip("verbose_shows_the_whole_compiler_output");
+        return;
+    }
+
+    let (directory, input) = workspace("paper.md", SIMPLE);
+    let template = directory.path().join("broken.typ");
+    std::fs::write(&template, BROKEN_TEMPLATE).expect("writing the template");
+
+    mdpdf()
+        .arg(&input)
+        .arg("-v")
+        .arg("--template")
+        .arg(&template)
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("Full output:").and(predicate::str::contains("#five")));
+}
+
+#[test]
+fn a_missing_template_is_an_environment_error() {
+    let (_directory, input) = workspace("paper.md", SIMPLE);
+
+    mdpdf()
+        .arg(&input)
+        .args(["--template", "no-such-template.typ"])
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains(
+            "reading template no-such-template.typ",
+        ));
+}
