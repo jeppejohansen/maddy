@@ -1,6 +1,8 @@
 //! Shared helpers for the Typst layer's tests.
 
+mod document;
 mod escape;
+mod markup;
 
 use std::process::Command;
 
