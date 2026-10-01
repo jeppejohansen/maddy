@@ -314,11 +314,15 @@ The project is built test-first. Four levels of testing are used:
 4. **End-to-end tests** — real `typst` invocation, asserting a non-empty PDF
    with the expected page count
 
-Target coverage is 80%+. Run it with:
+Coverage is 92% of lines, against a target of 80%. Run it with:
 
 ```bash
 cargo llvm-cov --all-features --workspace
 ```
+
+Where a claim is really about what *Typst* does — escaping, symbol translation,
+every theme — the test asks the real compiler rather than asserting from memory,
+and skips cleanly when Typst is not installed.
 
 ---
 
@@ -337,7 +341,8 @@ The compiler is deliberately narrow. That narrowness is the feature.
 
 ## Status
 
-Implemented in the milestone order set out in [`spec.md`](spec.md):
+v0.1 is feature complete. Implemented in the milestone order set out in
+[`spec.md`](spec.md):
 
 - [x] **1** — basic document compiler
 - [x] **2** — mathematics
@@ -347,7 +352,15 @@ Implemented in the milestone order set out in [`spec.md`](spec.md):
 - [x] **6** — diagnostics
 - [x] **7** — configuration
 - [x] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
-- [ ] **9** — embedded Typst compiler
+- [ ] **9** — embedded Typst compiler *(optional; see below)*
+
+Milestone 9 replaces the `typst` subprocess with Typst's Rust compilation API,
+removing the external dependency. It is deliberately not done: the specification
+treats it as optional, and the architecture already accommodates it. Compilation
+sits behind `PdfBackend`, so `EmbeddedTypstBackend` can join
+`ExternalTypstBackend` without a change anywhere upstream.
+
+Test coverage is 92% of lines across 421 tests.
 
 ---
 
