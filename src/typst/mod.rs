@@ -9,6 +9,7 @@
 
 pub mod backend;
 pub mod document;
+pub mod embedded;
 pub mod escape;
 pub mod markup;
 pub mod presentation;
@@ -18,6 +19,7 @@ pub(crate) mod tests;
 
 pub use backend::{CompileContext, ExternalTypstBackend, PdfBackend};
 pub use document::emit_document;
+pub use embedded::EmbeddedTypstBackend;
 pub use presentation::emit_presentation;
 
 /// What a renderer needs besides the document itself.

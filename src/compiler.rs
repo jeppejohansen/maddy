@@ -27,7 +27,8 @@ use crate::ir::{Block, Document, Presentation};
 use crate::markdown;
 use crate::metadata::{DocumentType, Metadata};
 use crate::templates;
-use crate::typst::backend::{CompileContext, ExternalTypstBackend, PdfBackend};
+use crate::typst::backend::{CompileContext, PdfBackend};
+use crate::typst::EmbeddedTypstBackend;
 use crate::typst::{emit_document, emit_presentation, RenderOptions};
 
 /// Everything the caller can decide, before the document has been read.
@@ -185,6 +186,18 @@ pub fn compile_source(
     })
 }
 
+/// Whether this compilation names a font family Typst does not bundle.
+///
+/// A custom template is assumed to, since its contents are unknown. The
+/// backend independently detects characters the bundled faces cannot render, so
+/// being wrong here costs speed, never correctness.
+fn needs_system_fonts(effective: &EffectiveOptions) -> bool {
+    effective.template.is_some()
+        || effective.config.document.font.is_some()
+        || effective.config.code.font.is_some()
+        || !templates::bundled_fonts_only(effective.document_type, effective.style.as_deref())
+}
+
 /// Every file a compilation depended on.
 ///
 /// Watch mode rebuilds when any of them changes, so a document that starts or
@@ -272,9 +285,10 @@ fn write_outputs(
 
     if effective.emit.writes_pdf() {
         log.stage("Running Typst...");
-        let backend = ExternalTypstBackend::new();
-        let context =
-            CompileContext::for_source(input).verbose(effective.verbosity == Verbosity::Verbose);
+        let backend = EmbeddedTypstBackend::new();
+        let context = CompileContext::for_source(input)
+            .verbose(effective.verbosity == Verbosity::Verbose)
+            .system_fonts(needs_system_fonts(effective));
         let pdf = backend.compile(typst, &context)?;
 
         let path = pdf_path(input, effective);

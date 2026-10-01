@@ -237,6 +237,38 @@ math interpretation or Markdown semantics.
 
 ---
 
+## Speed
+
+Typical documents compile in tens of milliseconds:
+
+| | compiler | total |
+| --- | --- | --- |
+| a paper with a dozen equations | 15 ms | **35 ms** |
+| a five-slide deck | 6 ms | **19 ms** |
+| 150 KB, 1000 equations, 155 pages | 82 ms | 455 ms |
+
+Mathematics translates at roughly 30,000 equations per second.
+
+Embedding the compiler is most of why. Shelling out to the `typst` executable
+cost about 370 ms on every single run, nearly all of it re-enumerating the
+machine's installed fonts — more time than everything else put together.
+
+### Fonts
+
+Only the faces Typst bundles are loaded by default, which is what keeps that
+cost away and makes output identical on every machine. The machine's own fonts
+are scanned only when they are actually needed:
+
+- the `minimal` and `bold` themes, whose identity is sans-serif, which Typst
+  does not bundle;
+- a `font` named in `maddy.toml`, or a custom `--template`;
+- text containing a character the bundled faces cannot draw — Chinese, emoji —
+  which is detected from the font metadata before compiling.
+
+That last check is why correctness does not depend on the others being right.
+Typst draws an uncovered character as a blank box rather than failing, so
+detecting it is what stops a document from quietly coming out wrong.
+
 ## Architecture
 
 ```text
@@ -352,15 +384,14 @@ v0.1 is feature complete. Implemented in the milestone order set out in
 - [x] **6** — diagnostics
 - [x] **7** — configuration
 - [x] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
-- [ ] **9** — embedded Typst compiler *(optional; see below)*
+- [x] **9** — embedded Typst compiler
 
-Milestone 9 replaces the `typst` subprocess with Typst's Rust compilation API,
-removing the external dependency. It is deliberately not done: the specification
-treats it as optional, and the architecture already accommodates it. Compilation
-sits behind `PdfBackend`, so `EmbeddedTypstBackend` can join
-`ExternalTypstBackend` without a change anywhere upstream.
+Compilation sits behind the `PdfBackend` trait. `EmbeddedTypstBackend` is the
+default and needs nothing installed; `ExternalTypstBackend`, which shells out to
+a `typst` executable, remains available and is what the two-backend agreement
+tests compare against.
 
-Test coverage is 92% of lines across 421 tests.
+Test coverage is 92% of lines across 438 tests.
 
 ---
 
