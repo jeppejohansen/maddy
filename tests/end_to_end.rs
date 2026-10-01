@@ -907,3 +907,41 @@ fn no_configuration_file_is_not_an_error() {
     let typst = std::fs::read_to_string(directory.path().join("paper.typ")).expect("paper.typ");
     assert!(!typst.contains("// From mdpdf.toml"), "{typst}");
 }
+
+#[test]
+fn emitting_both_reports_one_line_listing_each_output() {
+    if !support::typst_available() {
+        support::skip("emitting_both_reports_one_line_listing_each_output");
+        return;
+    }
+
+    let (_directory, input) = workspace("paper.md", SIMPLE);
+    let output = mdpdf()
+        .arg(&input)
+        .args(["--emit", "both"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(
+        text.lines().count(),
+        1,
+        "one compilation should report one line: {text}"
+    );
+    assert!(text.contains("paper.typ"), "{text}");
+    assert!(text.contains("paper.pdf"), "{text}");
+}
+
+#[test]
+fn emitting_typst_only_reports_the_typst_file() {
+    let (_directory, input) = workspace("paper.md", SIMPLE);
+    mdpdf()
+        .arg(&input)
+        .args(["--emit", "typst"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("paper.typ").and(predicate::str::contains(".pdf").not()));
+}

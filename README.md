@@ -346,7 +346,7 @@ Implemented in the milestone order set out in [`spec.md`](spec.md):
 - [x] **5** — richer Markdown
 - [x] **6** — diagnostics
 - [x] **7** — configuration
-- [ ] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
+- [x] **8** — convenience (`--watch`, `--keep-typst`, `--emit both`)
 - [ ] **9** — embedded Typst compiler
 
 ---

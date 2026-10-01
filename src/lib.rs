@@ -37,5 +37,6 @@ pub mod math;
 pub mod metadata;
 pub mod templates;
 pub mod typst;
+pub mod watch;
 
 pub use diagnostics::{Diagnostic, Severity, SourceSpan};
