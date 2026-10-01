@@ -30,6 +30,7 @@
 pub mod cli;
 pub mod diagnostics;
 pub mod ir;
+pub mod markdown;
 pub mod metadata;
 
 pub use diagnostics::{Diagnostic, Severity, SourceSpan};
