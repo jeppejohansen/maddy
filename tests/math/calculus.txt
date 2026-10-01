@@ -1,0 +1,12 @@
+\frac{\partial f(x)}{\partial x}
+\frac{\partial^2 f}{\partial x^2}
+\frac{d y}{d x}
+\int_0^1 f(x)\,dx
+\int_{-\infty}^{\infty} \phi(x)\,dx
+\int f(x) \, dx
+\oint_C F \cdot dr
+\nabla f
+\nabla^2 f
+\lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
+\sum_{n=0}^{\infty} \frac{x^n}{n!}
+\partial_x u

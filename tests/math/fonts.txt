@@ -1,0 +1,17 @@
+\mathbb{R}
+\mathbb{R}^K
+\mathbb{E}
+\mathbb E[Y]
+\mathbf{x}
+\mathbf{x}'\beta
+\mathbf{X}^\top\mathbf{y}
+\mathrm{d}x
+\mathit{x}
+\mathcal{F}
+\mathcal{N}(0, 1)
+\mathfrak{g}
+\mathsf{S}
+\mathtt{T}
+\boldsymbol{\beta}
+\text{if } x > 0
+\text{robust}

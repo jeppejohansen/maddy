@@ -1,0 +1,12 @@
+\frac{x}{y}
+\frac{1}{2}
+\frac{x_i^2}{\sqrt{n}}
+\frac{\partial f(x)}{\partial x}
+\dfrac{a}{b}
+\tfrac{a}{b}
+\frac{\frac{a}{b}}{c}
+\binom{n}{k}
+\sqrt{x}
+\sqrt{x + y}
+\sqrt[n]{x}
+\sqrt[3]{x^2}

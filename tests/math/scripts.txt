@@ -1,0 +1,15 @@
+x_i
+x^2
+x_i^2
+x^{2n}
+x_{i,j}
+x^{-1}
+X^\top
+X^\top X
+(X^\top X)^{-1}
+x_{i}^{2}
+e^{-x^2}
+a_1 + a_2 + a_3
+x_{i_j}
+2^{2^n}
+\hat\beta^{(2)}

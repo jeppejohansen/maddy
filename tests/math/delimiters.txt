@@ -1,0 +1,13 @@
+\left(\frac{x}{y}\right)
+\left[\frac{x}{y}\right]
+\left\{x\right\}
+\left|x\right|
+\left\|x\right\|
+\left\langle x, y \right\rangle
+\left\lfloor x \right\rfloor
+\left\lceil x \right\rceil
+\left(\sum_{i=1}^n X_i X_i^\top\right)^{-1}
+\left. x \right|
+\left( x \right.
+\big( x \big)
+\Big[ x \Big]

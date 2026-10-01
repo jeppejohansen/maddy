@@ -279,6 +279,7 @@ dependencies = [
  "clap",
  "predicates",
  "pulldown-cmark",
+ "ratex-font",
  "ratex-parser",
  "serde",
  "serde_yaml_ng",
