@@ -26,11 +26,20 @@ pub struct CompileContext {
     /// hiding them entirely would make such a problem invisible, so they appear
     /// under `--verbose`.
     pub verbose: bool,
+    /// Whether the machine's installed fonts must be available.
+    ///
+    /// Set when the document names a font family that is not bundled — through
+    /// configuration, or a theme or custom template that asks for one. The
+    /// embedded backend also turns this on by itself when the text contains a
+    /// character the bundled faces cannot render, so a correct document never
+    /// depends on the caller getting this right.
+    pub system_fonts: bool,
 }
 
 impl CompileContext {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
+            system_fonts: false,
             root: root.into(),
             verbose: false,
         }
@@ -45,6 +54,12 @@ impl CompileContext {
     /// Pass the backend's warnings through.
     pub fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
+        self
+    }
+
+    /// Require the machine's installed fonts.
+    pub fn system_fonts(mut self, required: bool) -> Self {
+        self.system_fonts = required;
         self
     }
 }

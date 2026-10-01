@@ -2,6 +2,7 @@
 
 mod backend;
 mod document;
+mod embedded;
 mod escape;
 mod markup;
 mod presentation;

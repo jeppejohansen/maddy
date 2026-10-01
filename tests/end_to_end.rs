@@ -376,19 +376,21 @@ fn a_missing_input_file_is_an_environment_error() {
 }
 
 #[test]
-fn a_missing_typst_executable_suggests_emitting_typst() {
+fn compiling_needs_no_typst_installation() {
+    // The compiler is embedded, so an empty PATH changes nothing. This is the
+    // whole point of the embedded backend, and the inverse of the test that
+    // stood here when Typst was a subprocess.
     let (directory, input) = workspace("paper.md", SIMPLE);
 
-    // An empty PATH, so no `typst` can be found.
     maddy()
         .arg(&input)
         .env("PATH", directory.path())
         .assert()
-        .code(3)
-        .stderr(
-            predicate::str::contains("Typst executable was not found")
-                .and(predicate::str::contains("--emit typst")),
-        );
+        .success();
+
+    let bytes = std::fs::read(directory.path().join("paper.pdf")).expect("paper.pdf");
+    assert!(support::is_pdf(&bytes));
+    assert_eq!(support::pdf_page_count(&bytes), Some(1));
 }
 
 // -------------------------------------------------------------------- logging
@@ -673,23 +675,32 @@ fn a_failing_template_reports_concisely_and_points_at_keep_typst() {
 
 #[test]
 fn verbose_shows_the_whole_compiler_output() {
-    if !support::typst_available() {
-        support::skip("verbose_shows_the_whole_compiler_output");
-        return;
-    }
-
     let (directory, input) = workspace("paper.md", SIMPLE);
     let template = directory.path().join("broken.typ");
     std::fs::write(&template, BROKEN_TEMPLATE).expect("writing the template");
 
-    maddy()
+    let output = maddy()
         .arg(&input)
         .arg("-v")
         .arg("--template")
         .arg(&template)
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("Full output:").and(predicate::str::contains("#five")));
+        .stderr(predicate::str::contains("Full output:"))
+        .get_output()
+        .stderr
+        .clone();
+
+    // The default report stops after a few lines; the full output carries the
+    // later errors too.
+    let text = String::from_utf8_lossy(&output);
+    let errors = text
+        .matches("the character `#` is not valid in code")
+        .count();
+    assert!(
+        errors > 2,
+        "expected the withheld errors as well, saw {errors}"
+    );
 }
 
 #[test]

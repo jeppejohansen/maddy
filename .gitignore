@@ -5,3 +5,6 @@
 /coverage
 *.profraw
 .DS_Store
+
+# Local scratch space, e.g. rendered theme examples
+/tmp/

@@ -27,6 +27,12 @@ serde_yaml_ng = "0.10"
 toml = "1.1"
 thiserror = "2.0"
 ratex-font = "0.1.14"
+typst = "0.15.1"
+typst-pdf = "0.15.1"
+typst-assets = { version = "0.15.1", features = ["fonts"] }
+comemo = "0.5"
+typst-layout = "0.15.1"
+typst-kit = { version = "0.15.1", default-features = false, features = ["scan-fonts", "embedded-fonts"] }
 
 [dev-dependencies]
 assert_cmd = "2.2"
