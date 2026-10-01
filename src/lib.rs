@@ -32,5 +32,6 @@ pub mod diagnostics;
 pub mod ir;
 pub mod markdown;
 pub mod metadata;
+pub mod typst;
 
 pub use diagnostics::{Diagnostic, Severity, SourceSpan};
