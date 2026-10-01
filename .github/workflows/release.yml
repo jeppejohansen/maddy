@@ -1,0 +1,209 @@
+name: Release
+
+# Pushing a version tag builds every target and publishes a release.
+# `workflow_dispatch` runs the same builds without publishing, so the matrix can
+# be verified before a tag is cut.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One target failing should not hide the state of the others.
+      fail-fast: false
+      matrix:
+        include:
+          # A single macOS artifact covers both architectures, built here as two
+          # slices and joined with lipo.
+          - name: macOS (universal)
+            os: macos-latest
+            artifact: macos-universal
+            targets: aarch64-apple-darwin x86_64-apple-darwin
+            archive: tar.gz
+
+          - name: Linux x86_64
+            os: ubuntu-latest
+            artifact: x86_64-linux
+            targets: x86_64-unknown-linux-gnu
+            archive: tar.gz
+
+          # Statically linked, so it runs on any distribution regardless of how
+          # old its glibc is — including Alpine.
+          - name: Linux x86_64 (static)
+            os: ubuntu-latest
+            artifact: x86_64-linux-static
+            targets: x86_64-unknown-linux-musl
+            archive: tar.gz
+            packages: musl-tools
+
+          - name: Linux aarch64
+            os: ubuntu-24.04-arm
+            artifact: aarch64-linux
+            targets: aarch64-unknown-linux-gnu
+            archive: tar.gz
+
+          - name: Windows x86_64
+            os: windows-latest
+            artifact: x86_64-windows
+            targets: x86_64-pc-windows-msvc
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build packages
+        if: matrix.packages != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.artifact }}
+
+      - name: Build
+        shell: bash
+        run: |
+          for target in ${{ matrix.targets }}; do
+            cargo build --release --locked --target "$target"
+          done
+
+      - name: Stage the binary
+        shell: bash
+        run: |
+          mkdir -p staging
+          slices=()
+          for target in ${{ matrix.targets }}; do
+            slices+=("target/$target/release/maddy")
+          done
+
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            cp "target/${{ matrix.targets }}/release/maddy.exe" staging/
+          elif [ "${#slices[@]}" -gt 1 ]; then
+            # macOS: join the architecture slices into one universal binary.
+            lipo -create -output staging/maddy "${slices[@]}"
+            lipo -archs staging/maddy
+          else
+            cp "${slices[0]}" staging/
+          fi
+
+          cp README.md LICENSE staging/
+
+      - name: Archive
+        id: archive
+        shell: bash
+        run: |
+          # A tag names the version; a manual run takes it from the manifest.
+          version="${GITHUB_REF_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)-dev"
+          fi
+
+          name="maddy-${version}-${{ matrix.artifact }}"
+          cd staging
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "../${name}.zip" ./*
+          else
+            tar czf "../${name}.tar.gz" ./*
+          fi
+          cd ..
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+
+      - name: Checksum
+        shell: bash
+        run: |
+          file="${{ steps.archive.outputs.name }}.${{ matrix.archive }}"
+          if command -v sha256sum >/dev/null; then
+            sha256sum "$file" > "$file.sha256"
+          else
+            shasum -a 256 "$file" > "$file.sha256"
+          fi
+          cat "$file.sha256"
+
+      - name: Smoke test
+        shell: bash
+        # The artifact is self-contained, so this compiles a real PDF rather
+        # than stopping at Typst source. Every target here is built natively,
+        # including the macOS universal binary, so each one can run its own.
+        run: |
+          binary="staging/maddy"
+          [ "${{ matrix.archive }}" = "zip" ] && binary="staging/maddy.exe"
+          printf -- '# Heading\n\nText with $x_i^2$ inline.\n\n$$\n\\frac{x}{y}\n$$\n' > smoke.md
+          "$binary" --version
+          "$binary" smoke.md
+          test -s smoke.pdf
+          head -c 5 smoke.pdf | grep -q "%PDF-"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: |
+            ${{ steps.archive.outputs.name }}.${{ matrix.archive }}
+            ${{ steps.archive.outputs.name }}.${{ matrix.archive }}.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    # Only a tag publishes; a manual run stops after proving the matrix builds.
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Collect checksums
+        run: |
+          cd artifacts
+          cat ./*.sha256 > SHA256SUMS
+          rm -f ./*.sha256
+          ls -la
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "maddy $GITHUB_REF_NAME" \
+            --generate-notes \
+            --notes-file - artifacts/* <<'NOTES'
+          ## Install
+
+          Download the archive for your platform below, unpack it, and put `maddy`
+          somewhere on your `PATH`.
+
+          ```bash
+          # macOS (Intel and Apple Silicon)
+          tar xzf maddy-*-macos-universal.tar.gz && sudo mv maddy /usr/local/bin/
+
+          # Linux
+          tar xzf maddy-*-x86_64-linux.tar.gz && sudo mv maddy /usr/local/bin/
+          ```
+
+          Or build from source:
+
+          ```bash
+          cargo install --git https://github.com/jeppejohansen/maddy
+          ```
+
+          **Nothing else is required.** The Typst compiler and its fonts are built
+          into the binary — no LaTeX, no Typst installation, no runtime dependency.
+
+          Verify a download against `SHA256SUMS`.
+          NOTES
