@@ -73,6 +73,8 @@ pub struct CompileResult {
     pub outputs: Vec<PathBuf>,
     /// Non-fatal diagnostics, for the caller to render.
     pub diagnostics: Vec<Diagnostic>,
+    /// Every file this compilation read, which is what watch mode watches.
+    pub inputs: Vec<PathBuf>,
 }
 
 impl CompileResult {
@@ -91,6 +93,18 @@ impl CompileResult {
             .find(|path| path.extension().is_some_and(|ext| ext == "typ"))
             .map(PathBuf::as_path)
     }
+}
+
+/// The files a compilation of `input` would depend on, before it is attempted.
+///
+/// Used by watch mode after a failure, when no result is available: without it a
+/// document with a syntax error would stop rebuilding.
+pub fn probable_dependencies(input: &Path, options: &CompileOptions) -> Vec<PathBuf> {
+    let config = Config::discover(input, options.config.as_deref())
+        .ok()
+        .and_then(|(_, path)| path)
+        .or_else(|| options.config.clone());
+    dependencies(input, config, options.template.clone())
 }
 
 /// Read and compile a Markdown file.
@@ -167,7 +181,19 @@ pub fn compile_source(
         document_type: effective.document_type,
         outputs,
         diagnostics: diagnostics.into_entries(),
+        inputs: dependencies(input, config_path, effective.template.clone()),
     })
+}
+
+/// Every file a compilation depended on.
+///
+/// Watch mode rebuilds when any of them changes, so a document that starts or
+/// stops using a configuration file is handled by recomputing this each time.
+fn dependencies(input: &Path, config: Option<PathBuf>, template: Option<PathBuf>) -> Vec<PathBuf> {
+    let mut paths = vec![input.to_path_buf()];
+    paths.extend(config);
+    paths.extend(template);
+    paths
 }
 
 /// Apply the precedence rule.

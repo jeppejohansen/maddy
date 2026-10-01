@@ -11,6 +11,7 @@ use clap::{Parser, ValueEnum};
 
 use crate::compiler::{self, CompileOptions};
 use crate::diagnostics::{CompileError, Diagnostic};
+use crate::watch::Watcher;
 
 /// What the compiler should write to disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
@@ -133,10 +134,62 @@ impl Cli {
 /// Parse arguments and run the compiler, returning the process exit code.
 pub fn run() -> ExitCode {
     let cli = Cli::parse();
+
+    if cli.watch {
+        return watch(&cli);
+    }
+
     match run_once(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }
+}
+
+/// Compile, then rebuild whenever an input changes.
+///
+/// A failed build does not end the loop — recovering from a mistake without
+/// restarting is the point of watching — so each build simply reports itself.
+fn watch(cli: &Cli) -> ExitCode {
+    // The first build is reported like any other. The loop below then runs
+    // until the process is interrupted, so this function never returns.
+    let _ = run_once(cli);
+
+    let mut watcher = Watcher::new(dependencies(cli));
+    announce(cli, &mut watcher);
+
+    loop {
+        let changed = watcher.wait();
+        if cli.verbosity() == Verbosity::Verbose {
+            for path in &changed {
+                eprintln!("Changed: {}", path.display());
+            }
+        }
+
+        let _ = run_once(cli);
+        // What matters can change between builds: a document may start or stop
+        // using a configuration file.
+        watcher.track(dependencies(cli));
+    }
+}
+
+/// Say what is being watched, unless asked to be quiet.
+fn announce(cli: &Cli, watcher: &mut Watcher) {
+    if cli.verbosity() == Verbosity::Quiet {
+        return;
+    }
+    let paths: Vec<String> = watcher
+        .paths()
+        .map(|path| path.display().to_string())
+        .collect();
+    println!(
+        "Watching {} for changes; press Ctrl-C to stop.",
+        paths.join(", ")
+    );
+}
+
+/// The files a build depends on right now.
+fn dependencies(cli: &Cli) -> Vec<PathBuf> {
+    compiler::probable_dependencies(&cli.input, &cli.options())
 }
 
 /// Compile once, reporting any failure. Returns the exit code on failure.
@@ -160,10 +213,14 @@ fn run_once(cli: &Cli) -> std::result::Result<(), u8> {
     match compiler::compile_source(&cli.input, &source, &cli.options()) {
         Ok(result) => {
             print_diagnostics(&result.diagnostics, &path, &source);
-            if cli.verbosity() != Verbosity::Quiet {
-                for output in &result.outputs {
-                    println!("Compiled {path} → {}", output.display());
-                }
+            if cli.verbosity() != Verbosity::Quiet && !result.outputs.is_empty() {
+                // One line per compilation, listing everything it wrote.
+                let outputs: Vec<String> = result
+                    .outputs
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect();
+                println!("Compiled {path} → {}", outputs.join(", "));
             }
             Ok(())
         }
