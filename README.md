@@ -98,20 +98,59 @@ A title slide is generated automatically from the metadata.
 
 ## Installation
 
-Requires a Rust toolchain and the [Typst](https://github.com/typst/typst) CLI on
-`PATH`.
+**macOS and Linux**
 
 ```bash
-cargo install --path .
+curl -LsSf https://raw.githubusercontent.com/jeppejohansen/maddy/main/install.sh | sh
 ```
 
-If Typst is not installed you can still generate Typst source:
+**Windows**
+
+```powershell
+irm https://raw.githubusercontent.com/jeppejohansen/maddy/main/install.ps1 | iex
+```
+
+**With Cargo**
 
 ```bash
-maddy --emit typst paper.md
+cargo install --git https://github.com/jeppejohansen/maddy
 ```
 
----
+**Nothing else is required.** The Typst compiler and its fonts are built into the
+binary, so there is no LaTeX installation, no Typst installation, and no runtime
+dependency at all.
+
+<details>
+<summary>What the installer does, and how to avoid it</summary>
+
+It picks the right build for your system, verifies it against the release's
+`SHA256SUMS`, checks that it runs, and puts it in `~/.local/bin` (or
+`%LOCALAPPDATA%\maddy\bin`). On Linux it falls back to the statically linked
+build if the default one will not run — an old glibc, usually. `MADDY_VERSION`
+pins a release and `MADDY_INSTALL_DIR` changes where it lands.
+
+If you would rather not pipe a script into a shell, read it first — it is
+[one file](install.sh) — or skip it and take an archive from
+[Releases](https://github.com/jeppejohansen/maddy/releases):
+
+| Platform | Download |
+| --- | --- |
+| macOS, Intel and Apple Silicon | `maddy-<version>-macos-universal.tar.gz` |
+| Linux x86\_64 | `maddy-<version>-x86_64-linux.tar.gz` |
+| Linux aarch64 | `maddy-<version>-aarch64-linux.tar.gz` |
+| Linux, any distribution | `maddy-<version>-<arch>-linux-static.tar.gz` |
+| Windows x86\_64 | `maddy-<version>-x86_64-windows.zip` |
+
+Unpack it and put `maddy` on your `PATH`:
+
+```bash
+tar xzf maddy-*-macos-universal.tar.gz && sudo mv maddy /usr/local/bin/
+```
+
+The static Linux builds are musl-linked and run on any distribution however old
+its glibc, including Alpine. Every archive is listed in `SHA256SUMS`.
+
+</details>
 
 ## Usage
 
