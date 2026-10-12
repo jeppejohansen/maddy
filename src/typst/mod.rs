@@ -34,6 +34,18 @@ pub struct RenderOptions {
     /// without any change to the theme contract, and work equally well with a
     /// custom template.
     pub prelude: String,
+    /// The slide axes, already validated. Passed to the template's show rule;
+    /// the renderer never acts on them itself.
+    pub slides: Option<SlideOptions>,
+}
+
+/// The four independent slide choices.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlideOptions {
+    pub style: String,
+    pub palette: String,
+    pub ratio: String,
+    pub text_size: String,
 }
 
 impl RenderOptions {
@@ -41,7 +53,14 @@ impl RenderOptions {
         Self {
             template: template.into(),
             prelude: String::new(),
+            slides: None,
         }
+    }
+
+    /// Render slides with the given style, palette, ratio and text size.
+    pub fn with_slides(mut self, slides: SlideOptions) -> Self {
+        self.slides = Some(slides);
+        self
     }
 
     /// Add configuration rules.

@@ -73,7 +73,7 @@ $$
 "#;
 
 /// The themes the documentation promises.
-const THEMES: &[&str] = &["academic", "minimal", "dark", "bold", "mono"];
+const THEMES: &[&str] = &["modern", "academic", "editorial", "bold", "technical"];
 
 fn maddy() -> Command {
     Command::cargo_bin("maddy").expect("the maddy binary should be built")
@@ -186,7 +186,10 @@ fn the_style_can_be_chosen_from_front_matter() {
         return;
     }
 
-    let deck = DECK.replace("date: October 2026", "date: October 2026\nstyle: dark");
+    let deck = DECK.replace(
+        "date: October 2026",
+        "date: October 2026\npalette: bottle-dark",
+    );
     let directory = tempfile::tempdir().expect("a temporary directory");
     let input = support::write_markdown(directory.path(), "talk.md", &deck);
 
@@ -194,8 +197,8 @@ fn the_style_can_be_chosen_from_front_matter() {
 
     let typst = std::fs::read_to_string(directory.path().join("talk.typ")).expect("talk.typ");
     assert!(
-        typst.contains("The dark slide theme"),
-        "front matter should select the theme"
+        typst.contains(r#"palette: "bottle-dark""#),
+        "front matter should select the palette"
     );
 }
 
@@ -206,22 +209,22 @@ fn a_command_line_style_overrides_the_front_matter() {
         return;
     }
 
-    // The specification's example: `style: academic` overridden by `--style dark`.
+    // `style: academic` in the document, overridden by `--style bold`.
     let deck = DECK.replace("date: October 2026", "date: October 2026\nstyle: academic");
     let directory = tempfile::tempdir().expect("a temporary directory");
     let input = support::write_markdown(directory.path(), "talk.md", &deck);
 
     maddy()
         .arg(&input)
-        .args(["--style", "dark"])
+        .args(["--style", "bold"])
         .arg("--keep-typst")
         .assert()
         .success();
 
     let typst = std::fs::read_to_string(directory.path().join("talk.typ")).expect("talk.typ");
     assert!(
-        typst.contains("The dark slide theme"),
+        typst.contains(r#"style: "bold""#),
         "the command line should win"
     );
-    assert!(!typst.contains("The academic slide theme"));
+    assert!(!typst.contains(r#"style: "academic""#));
 }

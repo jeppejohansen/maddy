@@ -11,7 +11,12 @@ fn text(value: &str) -> Inline {
 }
 
 fn options() -> RenderOptions {
-    RenderOptions::new(templates::slides("academic").expect("the academic theme"))
+    RenderOptions::new(templates::slides()).with_slides(crate::typst::SlideOptions {
+        style: "modern".into(),
+        palette: "midnight".into(),
+        ratio: "16:9".into(),
+        text_size: "medium".into(),
+    })
 }
 
 /// Segment and render, requiring success.

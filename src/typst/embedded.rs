@@ -90,17 +90,47 @@ impl PdfBackend for EmbeddedTypstBackend {
 /// How many compilations a memoized value survives unused.
 const DEPTH: usize = 8;
 
-/// The fonts Typst bundles, parsed once per process.
+/// The faces the built-in slide styles are drawn in.
 ///
-/// Seventeen faces, compiled into the binary, so a document renders identically
-/// on every machine and nothing is scanned at startup.
+/// Compiled into the binary alongside Typst's own, so a deck renders identically
+/// on every machine. Variable fonts where one exists, which is what keeps the
+/// set near two megabytes and lets a style ask for a weight such as 650.
+const MADDY_FONTS: &[&[u8]] = &[
+    include_bytes!("../templates/fonts/InstrumentSans.ttf"),
+    include_bytes!("../templates/fonts/InstrumentSerif.ttf"),
+    include_bytes!("../templates/fonts/InstrumentSerif-Italic.ttf"),
+    include_bytes!("../templates/fonts/Newsreader.ttf"),
+    include_bytes!("../templates/fonts/Newsreader-Italic.ttf"),
+    include_bytes!("../templates/fonts/Manrope.ttf"),
+    include_bytes!("../templates/fonts/Geist.ttf"),
+    include_bytes!("../templates/fonts/GeistMono.ttf"),
+    include_bytes!("../templates/fonts/IBMPlexMono.ttf"),
+    include_bytes!("../templates/fonts/IBMPlexMono-Bold.ttf"),
+];
+
+/// Every face compiled into the binary, parsed once per process.
+///
+/// Typst's own bundle plus maddy's, so nothing is scanned at startup.
 fn bundled_fonts() -> &'static FontStore {
     static FONTS: OnceLock<FontStore> = OnceLock::new();
     FONTS.get_or_init(|| {
         let mut store = FontStore::new();
         store.extend(typst_kit::fonts::embedded());
+        store.extend(maddy_fonts());
         store
     })
+}
+
+/// Parse maddy's own faces into the form the store accepts.
+fn maddy_fonts() -> Vec<(Font, typst::text::FontInfo)> {
+    MADDY_FONTS
+        .iter()
+        .flat_map(|data| Font::iter(Bytes::new(*data)))
+        .map(|font| {
+            let info = font.info().clone();
+            (font, info)
+        })
+        .collect()
 }
 
 /// The bundled fonts plus every font installed on this machine.
@@ -112,6 +142,7 @@ fn system_fonts() -> &'static FontStore {
     FONTS.get_or_init(|| {
         let mut store = FontStore::new();
         store.extend(typst_kit::fonts::embedded());
+        store.extend(maddy_fonts());
         store.extend(typst_kit::fonts::system());
         store
     })

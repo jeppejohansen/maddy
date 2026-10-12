@@ -65,6 +65,12 @@ pub struct Metadata {
     pub date: Option<String>,
     pub document_type: DocumentType,
     pub style: Option<String>,
+    /// Colour scheme. Independent of `style`, which carries no colour.
+    pub palette: Option<String>,
+    /// Page geometry, such as `16:9`.
+    pub ratio: Option<String>,
+    /// The base body size: a preset name, or a length such as `22pt`.
+    pub text_size: Option<String>,
 }
 
 impl Metadata {
@@ -82,6 +88,9 @@ impl Metadata {
             && self.author.is_none()
             && self.date.is_none()
             && self.style.is_none()
+            && self.palette.is_none()
+            && self.ratio.is_none()
+            && self.text_size.is_none()
     }
 }
 

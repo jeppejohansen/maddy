@@ -842,7 +842,7 @@ fn the_full_precedence_chain_resolves_in_order() {
         let (directory, input) = workspace("talk.md", &source);
         std::fs::write(
             directory.path().join("maddy.toml"),
-            "[slides]\nstyle = \"mono\"\n",
+            "[slides]\nstyle = \"technical\"\n",
         )
         .expect("writing config");
 
@@ -862,14 +862,14 @@ fn the_full_precedence_chain_resolves_in_order() {
     };
 
     // Configuration alone.
-    with_style("", &[], "The mono slide theme");
+    with_style("", &[], "style: \"technical\"");
     // Front matter beats configuration.
-    with_style("style: dark\n", &[], "The dark slide theme");
+    with_style("style: editorial\n", &[], "style: \"editorial\"");
     // The command line beats both.
     with_style(
-        "style: dark\n",
+        "style: editorial\n",
         &["--style", "bold"],
-        "The bold slide theme",
+        "style: \"bold\"",
     );
 }
 
