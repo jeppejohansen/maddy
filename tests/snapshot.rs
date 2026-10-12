@@ -48,9 +48,16 @@ fn render(name: &str) -> String {
     let parsed = markdown::parse(front.body, front.body_offset, effective.document_type);
     let document = Document::new(front.metadata, parsed.blocks);
 
-    let template = templates::builtin(effective.document_type, effective.style.as_deref())
-        .unwrap_or_else(|error| panic!("{name}: {}", error.message()));
-    let render = RenderOptions::new(template);
+    let template = templates::builtin(effective.document_type);
+    let mut render = RenderOptions::new(template);
+    if effective.document_type == DocumentType::Slides {
+        render = render.with_slides(maddy::typst::SlideOptions {
+            style: templates::style(effective.style.as_deref()).expect("a style"),
+            palette: templates::palette(effective.palette.as_deref()).expect("a palette"),
+            ratio: templates::ratio(effective.ratio.as_deref()).expect("a ratio"),
+            text_size: templates::text_size(effective.text_size.as_deref()).expect("a size"),
+        });
+    }
     let mut diagnostics = Diagnostics::new();
 
     match effective.document_type {

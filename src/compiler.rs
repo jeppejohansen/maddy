@@ -29,7 +29,7 @@ use crate::metadata::{DocumentType, Metadata};
 use crate::templates;
 use crate::typst::backend::{CompileContext, PdfBackend};
 use crate::typst::EmbeddedTypstBackend;
-use crate::typst::{emit_document, emit_presentation, RenderOptions};
+use crate::typst::{emit_document, emit_presentation, RenderOptions, SlideOptions};
 
 /// Everything the caller can decide, before the document has been read.
 ///
@@ -45,6 +45,9 @@ pub struct CompileOptions {
     /// Set by `--slides`; overrides the document's own type.
     pub force_slides: bool,
     pub style: Option<String>,
+    pub palette: Option<String>,
+    pub ratio: Option<String>,
+    pub text_size: Option<String>,
     pub template: Option<PathBuf>,
     pub keep_typst: bool,
     pub strict: bool,
@@ -56,6 +59,9 @@ pub struct CompileOptions {
 pub struct EffectiveOptions {
     pub document_type: DocumentType,
     pub style: Option<String>,
+    pub palette: Option<String>,
+    pub ratio: Option<String>,
+    pub text_size: Option<String>,
     pub emit: EmitFormat,
     pub keep_typst: bool,
     pub strict: bool,
@@ -186,16 +192,17 @@ pub fn compile_source(
     })
 }
 
-/// Whether this compilation names a font family Typst does not bundle.
+/// Whether this compilation names a font family maddy does not bundle.
 ///
-/// A custom template is assumed to, since its contents are unknown. The
-/// backend independently detects characters the bundled faces cannot render, so
-/// being wrong here costs speed, never correctness.
+/// Every built-in style now draws in a bundled face, so only a custom template
+/// or a configured font can need the machine's own. A custom template is
+/// assumed to, since its contents are unknown. The backend independently
+/// detects characters the bundled faces cannot render, so being wrong here
+/// costs speed, never correctness.
 fn needs_system_fonts(effective: &EffectiveOptions) -> bool {
     effective.template.is_some()
         || effective.config.document.font.is_some()
         || effective.config.code.font.is_some()
-        || !templates::bundled_fonts_only(effective.document_type, effective.style.as_deref())
 }
 
 /// Every file a compilation depended on.
@@ -234,6 +241,21 @@ pub fn resolve_options(
             .clone()
             .or_else(|| metadata.style.clone())
             .or_else(|| config.slides.style.clone()),
+        palette: options
+            .palette
+            .clone()
+            .or_else(|| metadata.palette.clone())
+            .or_else(|| config.slides.palette.clone()),
+        ratio: options
+            .ratio
+            .clone()
+            .or_else(|| metadata.ratio.clone())
+            .or_else(|| config.slides.ratio.clone()),
+        text_size: options
+            .text_size
+            .clone()
+            .or_else(|| metadata.text_size.clone())
+            .or_else(|| config.slides.text_size.clone()),
         emit: options.emit,
         keep_typst: options.keep_typst,
         strict: options.strict,
@@ -249,21 +271,35 @@ pub fn resolve_options(
 /// A custom template replaces the built-in one entirely and is expected to
 /// implement the same contract.
 fn render_options(effective: &EffectiveOptions) -> Result<RenderOptions> {
-    match &effective.template {
-        Some(path) => {
-            // A custom template receives configuration too: the rules are
-            // emitted after it applies its own, so they override it just as
-            // they override a built-in theme.
-            let template = std::fs::read_to_string(path)
-                .map_err(io_error(format!("reading template {}", path.display())))?;
-            Ok(RenderOptions::new(template).with_prelude(effective.config.prelude()))
+    // The four slide axes are validated here and handed to the template as
+    // names. Unknown values are refused rather than silently defaulted: a
+    // misspelled `--palette` should say so.
+    let slides = match effective.document_type {
+        DocumentType::Slides => {
+            let invalid = |error: templates::Unknown| CompileError::Config(error.message());
+            Some(SlideOptions {
+                style: templates::style(effective.style.as_deref()).map_err(invalid)?,
+                palette: templates::palette(effective.palette.as_deref()).map_err(invalid)?,
+                ratio: templates::ratio(effective.ratio.as_deref()).map_err(invalid)?,
+                text_size: templates::text_size(effective.text_size.as_deref()).map_err(invalid)?,
+            })
         }
-        None => {
-            let template = templates::builtin(effective.document_type, effective.style.as_deref())
-                .map_err(|error| CompileError::Config(error.message()))?;
-            Ok(RenderOptions::new(template).with_prelude(effective.config.prelude()))
-        }
+        DocumentType::Document => None,
+    };
+
+    let template = match &effective.template {
+        // A custom template replaces the built-in one entirely and is expected
+        // to implement the same contract.
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(io_error(format!("reading template {}", path.display())))?,
+        None => templates::builtin(effective.document_type).to_string(),
+    };
+
+    let mut options = RenderOptions::new(template).with_prelude(effective.config.prelude());
+    if let Some(slides) = slides {
+        options = options.with_slides(slides);
     }
+    Ok(options)
 }
 
 /// Write whichever artifacts were asked for.

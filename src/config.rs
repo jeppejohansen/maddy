@@ -72,11 +72,14 @@ pub struct CodeConfig {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct SlidesConfig {
-    /// The default slide style for this project.
+    /// Project defaults for the four slide axes.
     ///
-    /// Sits between the built-in default and the document's own front matter in
-    /// the precedence chain.
+    /// Each sits between the built-in default and the document's own front
+    /// matter in the precedence chain.
     pub style: Option<String>,
+    pub palette: Option<String>,
+    pub ratio: Option<String>,
+    pub text_size: Option<String>,
 }
 
 impl Config {

@@ -76,6 +76,7 @@ title: Peer Effects
 subtitle: High School Application
 author: Jane Researcher
 style: academic
+palette: bottle
 ---
 
 # Motivation
@@ -94,7 +95,7 @@ $$
 
 A title slide is generated automatically from the metadata.
 
----
+![Six style and palette combinations](docs/examples/styles.png)
 
 ## Installation
 
@@ -165,6 +166,9 @@ Options:
       --emit <FORMAT>      pdf | typst | both          [default: pdf]
       --slides             Force presentation mode
       --style <STYLE>      Rendering style
+      --palette <PALETTE>  Colour palette (slides)
+      --ratio <RATIO>      Slide aspect ratio: 16:9, 3:2, 4:3
+      --text-size <SIZE>   Base body size: small, medium, large, or 22pt
       --config <PATH>      Configuration file
       --template <PATH>    Custom Typst template
       --keep-typst         Keep generated Typst
@@ -186,8 +190,12 @@ title: Peer Effects in High School Application
 subtitle: Strategic Complementarities
 author: Jane Researcher
 date: October 2026
-type: slides      # document | slides
-style: academic
+type: slides          # document | slides
+
+style: academic       # slides only
+palette: bottle
+ratio: 16:9
+text-size: medium
 ---
 ```
 
@@ -215,7 +223,10 @@ numbered = false
 font = "DejaVu Sans Mono"
 
 [slides]
-style = "academic"
+style = "modern"
+palette = "midnight"
+ratio = "16:9"
+text-size = "medium"
 ```
 
 Configuration is deliberately small. For complete visual control, use
@@ -227,8 +238,9 @@ Configuration is deliberately small. For complete visual control, use
 built-in defaults  →  maddy.toml  →  front matter  →  CLI arguments
 ```
 
-So `--style dark` overrides `style: academic` in the document, which in turn
-overrides `style` in `maddy.toml`.
+So `--palette claret` overrides `palette: bottle` in the document, which in turn
+overrides `palette` in `maddy.toml`. Each of the four slide axes resolves
+independently, so setting one on the command line leaves the others alone.
 
 ---
 
@@ -259,22 +271,61 @@ equations and arrays.
 
 ---
 
-## Slide themes
+## Slide design
 
-Five built-in themes, all pure Typst templates:
+A deck is described by four choices that do not interfere with each other:
 
-| Theme      | For                                                  |
-| ---------- | ---------------------------------------------------- |
-| `academic` | seminars, lectures, research talks *(default)*       |
-| `minimal`  | general professional and teaching decks              |
-| `dark`     | dark rooms, technical and visually focused talks     |
-| `bold`     | keynotes and pitches, one idea per slide             |
-| `mono`     | software, engineering and terminal-oriented talks    |
+```yaml
+style: modern        # typography, hierarchy, spacing, layout
+palette: midnight    # colour, and nothing else
+ratio: 16:9          # page geometry
+text-size: medium    # the base body size the scale derives from
+```
 
-Themes affect appearance only. They never affect parsing, slide segmentation,
-math interpretation or Markdown semantics.
+Five styles and eight palettes compose into forty coherent decks, instead of
+forty templates to maintain. `style: academic` with `palette: bottle` and with
+`palette: claret` are the same typography in different colours; `style: modern`
+and `style: editorial` on one palette are the same colours in different
+typography.
 
----
+### Styles
+
+| Style | For |
+| --- | --- |
+| `modern` | teaching, research, professional talks *(default)* |
+| `academic` | seminars and lectures — serif at the top of the hierarchy, sans below |
+| `editorial` | expressive decks, a display serif used sparingly |
+| `bold` | keynotes and pitches, one idea per slide |
+| `technical` | software and methods talks, with monospaced accents |
+
+### Palettes
+
+`midnight` · `bottle` · `ochre` · `claret` · `aubergine` · `petrol`
+
+Each pairs a cool base with a warm accent, or the reverse. Two dark variants are
+available — `midnight-dark` and `bottle-dark` — designed as dark palettes rather
+than inverted light ones: a desaturated near-black ground, off-white text, and an
+accent chosen to carry on a dark background.
+
+A palette controls colour and nothing else. Every one exposes the same semantic
+tokens (`primary`, `accent`, `background`, `surface`, `text`, `text-muted`,
+`border` and two more), so a style never knows which palette it has.
+
+### Ratio and text size
+
+`ratio` takes `16:9`, `3:2` or `4:3`. No style has a per-ratio variant — margins,
+measure and title widths are derived from the page.
+
+`text-size` takes `small`, `medium` or `large`, or an explicit length such as
+`22pt`. It sets the *base* size; every other level follows the style's own
+multipliers, so the hierarchy stays coherent rather than one font growing.
+
+```bash
+maddy talk.md --style editorial --palette claret --ratio 3:2 --text-size large
+```
+
+Styles and palettes affect appearance only. They never affect parsing, slide
+segmentation, math interpretation or Markdown semantics.
 
 ## Speed
 
@@ -294,19 +345,27 @@ machine's installed fonts — more time than everything else put together.
 
 ### Fonts
 
-Only the faces Typst bundles are loaded by default, which is what keeps that
-cost away and makes output identical on every machine. The machine's own fonts
-are scanned only when they are actually needed:
+Every face the built-in styles draw in is compiled into the binary — Instrument
+Sans, Instrument Serif, Newsreader, Manrope, Geist and IBM Plex Mono, about two
+megabytes, all SIL OFL. Variable fonts where one exists, which is what keeps the
+set near two megabytes rather than ten and lets a style ask for a weight such as
+650.
 
-- the `minimal` and `bold` themes, whose identity is sans-serif, which Typst
-  does not bundle;
+So a deck renders identically on every machine, and nothing is scanned at
+startup. The machine's own fonts are only loaded when something actually needs
+them:
+
 - a `font` named in `maddy.toml`, or a custom `--template`;
-- text containing a character the bundled faces cannot draw — Chinese, emoji —
-  which is detected from the font metadata before compiling.
+- text containing a character no bundled face can draw — Chinese, emoji — which
+  is detected from font metadata before compiling.
 
 That last check is why correctness does not depend on the others being right.
 Typst draws an uncovered character as a blank box rather than failing, so
 detecting it is what stops a document from quietly coming out wrong.
+
+One consequence worth knowing: `--emit typst` produces source that references
+those bundled families, so compiling it with the `typst` CLI needs
+`--font-path` pointing at them. Compiling it with `maddy` needs nothing.
 
 ## Architecture
 
@@ -361,8 +420,12 @@ src/
 ├── markdown/        front matter + Markdown → IR
 ├── ir/              document, block, inline, presentation
 ├── math/            math parser abstraction + Typst math emitter
-├── typst/           Typst emission, escaping, PDF backend
-└── templates/       Typst templates (1 document, 5 slide themes)
+├── typst/           Typst emission, escaping, PDF backends
+├── watch/           change detection for --watch
+└── templates/
+    ├── document/    the document style
+    ├── slides/      the slide system: palettes, styles, composition
+    └── fonts/       the faces compiled into the binary
 ```
 
 ---
@@ -412,13 +475,13 @@ The compiler is deliberately narrow. That narrowness is the feature.
 
 ## Status
 
-v0.1 is feature complete. Implemented in the milestone order set out in
-[`spec.md`](spec.md):
+v0.2.0. The milestones from [`spec.md`](spec.md) are complete, and the slide
+layer has since been rebuilt around the four-axis design system described above.
 
 - [x] **1** — basic document compiler
 - [x] **2** — mathematics
 - [x] **3** — slides
-- [x] **4** — five slide themes
+- [x] **4** — slide design system *(five styles × eight palettes)*
 - [x] **5** — richer Markdown
 - [x] **6** — diagnostics
 - [x] **7** — configuration
@@ -430,9 +493,23 @@ default and needs nothing installed; `ExternalTypstBackend`, which shells out to
 a `typst` executable, remains available and is what the two-backend agreement
 tests compare against.
 
-Test coverage is 92% of lines across 438 tests.
+442 tests, including a matrix proving every style × palette × ratio × text-size
+combination compiles and that changing one axis changes nothing else.
 
----
+### Breaking changes in v0.2.0
+
+The slide styles `academic`, `minimal`, `dark`, `bold` and `mono` are replaced
+by `modern`, `academic`, `editorial`, `bold` and `technical`. Darkness is now a
+palette rather than a style:
+
+```yaml
+style: dark                              # v0.1
+style: modern
+palette: midnight-dark                   # v0.2
+```
+
+No aliases are provided. `minimal` maps most closely to `modern`, and `mono` to
+`technical`.
 
 ## License
 

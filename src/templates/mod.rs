@@ -2,11 +2,12 @@
 //!
 //! Templates are plain Typst source, compiled into the binary and inlined into
 //! the generated document. Inlining keeps the output a single self-contained
-//! file, which is what makes `--emit typst` and `--keep-typst` genuinely useful
-//! for debugging.
+//! file, which is what makes `--emit typst` and `--keep-typst` useful — and it
+//! is also forced: a generated document is compiled with the author's Markdown
+//! directory as its root, so a template cannot import siblings.
 //!
 //! The Rust renderer never contains theme-specific formatting. Its only
-//! knowledge of a theme is which template source to inline.
+//! knowledge of appearance is which names to pass to the slide template.
 
 use crate::metadata::DocumentType;
 
@@ -16,113 +17,129 @@ mod tests;
 /// The default document template.
 pub const DOCUMENT_DEFAULT: &str = include_str!("document/default.typ");
 
-/// The default slide style.
-pub const DEFAULT_SLIDE_STYLE: &str = "academic";
+/// The slide system: palettes, styles and composition in one file.
+pub const SLIDES: &str = include_str!("slides/base.typ");
 
-/// The built-in slide themes, in the order the documentation lists them.
-pub const SLIDE_STYLES: &[Theme] = &[
-    Theme::bundled("academic", include_str!("slides/academic.typ")),
-    // Typst bundles no sans-serif face, so these two name system families.
-    Theme::system("minimal", include_str!("slides/minimal.typ")),
-    Theme::bundled("dark", include_str!("slides/dark.typ")),
-    Theme::system("bold", include_str!("slides/bold.typ")),
-    Theme::bundled("mono", include_str!("slides/mono.typ")),
+pub const DEFAULT_STYLE: &str = "modern";
+pub const DEFAULT_PALETTE: &str = "midnight";
+pub const DEFAULT_RATIO: &str = "16:9";
+pub const DEFAULT_TEXT_SIZE: &str = "medium";
+
+/// Typography and composition. Carries no colour of its own.
+pub const STYLES: &[&str] = &["modern", "academic", "editorial", "bold", "technical"];
+
+/// Colour only. Every palette exposes the same semantic tokens.
+pub const PALETTES: &[&str] = &[
+    "midnight",
+    "bottle",
+    "ochre",
+    "claret",
+    "aubergine",
+    "petrol",
+    "midnight-dark",
+    "bottle-dark",
 ];
 
-/// A built-in theme.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Theme {
-    pub name: &'static str,
-    pub source: &'static str,
-    /// Whether the theme renders correctly with only Typst's bundled fonts.
-    ///
-    /// A theme that names a system family needs those fonts loaded, which is
-    /// slower; knowing this up front saves scanning them for the themes that
-    /// do not.
-    pub bundled_fonts_only: bool,
-}
+/// Page geometry.
+pub const RATIOS: &[&str] = &["16:9", "3:2", "4:3"];
 
-impl Theme {
-    const fn bundled(name: &'static str, source: &'static str) -> Self {
-        Self {
-            name,
-            source,
-            bundled_fonts_only: true,
-        }
-    }
+/// Named base body sizes. A length such as `22pt` is also accepted.
+pub const TEXT_SIZES: &[&str] = &["small", "medium", "large"];
 
-    const fn system(name: &'static str, source: &'static str) -> Self {
-        Self {
-            name,
-            source,
-            bundled_fonts_only: false,
-        }
-    }
-}
-
-/// The built-in document template.
 pub fn document() -> &'static str {
     DOCUMENT_DEFAULT
 }
 
-/// A built-in slide theme by name.
-pub fn slides(style: &str) -> Option<&'static str> {
-    slide_theme(style).map(|theme| theme.source)
+pub fn slides() -> &'static str {
+    SLIDES
 }
 
-/// A built-in slide theme, with its font requirements.
-pub fn slide_theme(style: &str) -> Option<&'static Theme> {
-    SLIDE_STYLES
-        .iter()
-        .find(|theme| theme.name.eq_ignore_ascii_case(style.trim()))
-}
-
-/// The names of the built-in slide themes.
-pub fn slide_style_names() -> Vec<&'static str> {
-    SLIDE_STYLES.iter().map(|theme| theme.name).collect()
-}
-
-/// Whether a built-in template renders correctly with only the bundled fonts.
-///
-/// The document template names only bundled families, so it always does.
-pub fn bundled_fonts_only(document_type: DocumentType, style: Option<&str>) -> bool {
-    match document_type {
-        DocumentType::Document => true,
-        DocumentType::Slides => slide_theme(style.unwrap_or(DEFAULT_SLIDE_STYLE))
-            .is_some_and(|theme| theme.bundled_fonts_only),
-    }
-}
-
-/// The built-in template for a document type and optional style.
-///
-/// An unknown style is an error rather than a silent fallback: a misspelled
-/// `--style` should say so, not quietly produce the default theme.
-pub fn builtin(
-    document_type: DocumentType,
-    style: Option<&str>,
-) -> std::result::Result<&'static str, UnknownStyle> {
+/// The built-in template for a document type.
+pub fn builtin(document_type: DocumentType) -> &'static str {
     match document_type {
         // v0.1 ships one excellent document style rather than five.
-        DocumentType::Document => Ok(document()),
-        DocumentType::Slides => {
-            let style = style.unwrap_or(DEFAULT_SLIDE_STYLE);
-            slides(style).ok_or_else(|| UnknownStyle(style.to_string()))
-        }
+        DocumentType::Document => document(),
+        DocumentType::Slides => slides(),
     }
 }
 
-/// A style name that matches no built-in theme.
+/// A value that names no built-in option.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("unknown style `{0}`")]
-pub struct UnknownStyle(pub String);
+#[error("unknown {axis} `{value}`")]
+pub struct Unknown {
+    pub axis: &'static str,
+    pub value: String,
+    allowed: &'static [&'static str],
+}
 
-impl UnknownStyle {
-    /// The message shown to the user, naming the styles that do exist.
+impl Unknown {
+    /// The message shown to the user, naming what they could have meant.
     pub fn message(&self) -> String {
         format!(
-            "unknown style `{}`, expected one of: {}",
-            self.0,
-            slide_style_names().join(", ")
+            "unknown {} `{}`, expected one of: {}",
+            self.axis,
+            self.value,
+            self.allowed.join(", ")
         )
     }
+}
+
+/// Check a value against the options for its axis, case-insensitively.
+///
+/// Returns the canonical spelling, so `DARK` reaches the template as `dark`.
+fn check(
+    axis: &'static str,
+    allowed: &'static [&'static str],
+    value: &str,
+) -> Result<String, Unknown> {
+    let trimmed = value.trim();
+    allowed
+        .iter()
+        .find(|option| option.eq_ignore_ascii_case(trimmed))
+        .map(|option| (*option).to_string())
+        .ok_or_else(|| Unknown {
+            axis,
+            value: trimmed.to_string(),
+            allowed,
+        })
+}
+
+pub fn style(value: Option<&str>) -> Result<String, Unknown> {
+    check("style", STYLES, value.unwrap_or(DEFAULT_STYLE))
+}
+
+pub fn palette(value: Option<&str>) -> Result<String, Unknown> {
+    check("palette", PALETTES, value.unwrap_or(DEFAULT_PALETTE))
+}
+
+pub fn ratio(value: Option<&str>) -> Result<String, Unknown> {
+    check("ratio", RATIOS, value.unwrap_or(DEFAULT_RATIO))
+}
+
+/// A text size: a preset name, or an explicit Typst length.
+///
+/// An explicit length is passed through so that the style's own multipliers
+/// still shape the rest of the hierarchy around it.
+pub fn text_size(value: Option<&str>) -> Result<String, Unknown> {
+    let value = value.unwrap_or(DEFAULT_TEXT_SIZE);
+    if let Ok(name) = check("text size", TEXT_SIZES, value) {
+        return Ok(name);
+    }
+    if is_length(value.trim()) {
+        return Ok(value.trim().to_string());
+    }
+    Err(Unknown {
+        axis: "text size",
+        value: value.trim().to_string(),
+        allowed: TEXT_SIZES,
+    })
+}
+
+/// Whether a string is a Typst length, such as `22pt`.
+fn is_length(value: &str) -> bool {
+    let Some(split) = value.find(|c: char| c.is_ascii_alphabetic()) else {
+        return false;
+    };
+    let (number, unit) = value.split_at(split);
+    number.parse::<f64>().is_ok_and(|n| n > 0.0) && matches!(unit, "pt" | "mm" | "cm" | "in" | "em")
 }

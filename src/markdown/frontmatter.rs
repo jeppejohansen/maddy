@@ -161,6 +161,10 @@ fn parse_yaml(yaml: &str, offset: usize) -> Result<(Metadata, Vec<Diagnostic>)> 
             "author" => metadata.author = Some(text),
             "date" => metadata.date = Some(text),
             "style" => metadata.style = Some(text),
+            "palette" => metadata.palette = Some(text),
+            "ratio" => metadata.ratio = Some(text),
+            // Hyphenated in front matter, to match the documented spelling.
+            "text-size" | "text_size" => metadata.text_size = Some(text),
             "type" => {
                 metadata.document_type =
                     text.parse::<DocumentType>()

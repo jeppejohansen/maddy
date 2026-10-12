@@ -77,6 +77,18 @@ pub struct Cli {
     #[arg(long, value_name = "STYLE")]
     pub style: Option<String>,
 
+    /// Colour palette (slides)
+    #[arg(long, value_name = "PALETTE")]
+    pub palette: Option<String>,
+
+    /// Slide aspect ratio, such as 16:9
+    #[arg(long, value_name = "RATIO")]
+    pub ratio: Option<String>,
+
+    /// Base body size: small, medium, large, or a length such as 22pt
+    #[arg(long = "text-size", value_name = "SIZE")]
+    pub text_size: Option<String>,
+
     /// Configuration file
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
@@ -115,6 +127,9 @@ impl Cli {
             emit: self.emit,
             force_slides: self.slides,
             style: self.style.clone(),
+            palette: self.palette.clone(),
+            ratio: self.ratio.clone(),
+            text_size: self.text_size.clone(),
             template: self.template.clone(),
             keep_typst: self.keep_typst,
             strict: self.strict,
